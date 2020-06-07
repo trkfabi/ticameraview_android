@@ -12,12 +12,13 @@ import android.app.Activity
 import org.appcelerator.kroll.annotations.Kroll.proxy
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
+import ti.cameraview.camera.CameraView
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = ["color"])
 class CameraViewProxy : TiViewProxy() {
     companion object {
-        private const val LCAT = "CameraViewProxy"
+        const val LCAT = "CameraViewProxy"
     }
 
     override fun createView(activity: Activity): TiUIView {
