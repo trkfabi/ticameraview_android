@@ -9,10 +9,14 @@
 package ti.cameraview
 
 import android.app.Activity
+import android.os.Bundle
+import android.util.Log
+import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.camera.CameraView
+import ti.cameraview.helper.PermissionHandler
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = ["color"])
@@ -26,5 +30,15 @@ class CameraViewProxy : TiViewProxy() {
         view.layoutParams.autoFillsHeight = true
         view.layoutParams.autoFillsWidth = true
         return view
+    }
+
+    @Kroll.method
+    public fun createCameraView() {
+        if (!PermissionHandler.hasCameraPermission() || !PermissionHandler.hasStoragePermission()) {
+            Log.d(CameraView.LCAT, "Camera permissions missing. Use Ti.Media.requestCameraPermissions to request required permissions")
+            return
+        }
+
+        (view as CameraView).createCameraPreview()
     }
 }

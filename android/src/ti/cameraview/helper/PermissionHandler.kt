@@ -21,10 +21,5 @@ class PermissionHandler {
             }
             return true
         }
-
-        @JvmStatic
-        fun requestStoragePermission() {
-
-        }
     }
 }

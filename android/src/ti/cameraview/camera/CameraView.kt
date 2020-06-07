@@ -74,6 +74,9 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     private var camera: Camera? = null
     private lateinit var cameraExecutor: ExecutorService
 
+    // getter
+    private val isCameraViewAvailable get() = this::cameraView.isInitialized
+
     companion object {
         val LCAT = "CameraView"
         val REQUEST_CODE_PERMISSIONS = 100
@@ -97,27 +100,35 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         // hold a reference to the proxy's root view to add camera-preview later
         rootView = TiCompositeLayout(proxy.activity, arrangement)
 
+        if (PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
+            Log.d(LCAT, "****** creating camera-view 1…")
+            createCameraPreview()
+        }
+
         setNativeView(rootView)
     }
 
     override fun processProperties(dict: KrollDict) {
         super.processProperties(dict)
+
         if (outerView == null) {
             return
         }
+
         if (dict.containsKey("color")) {
             Log.d(LCAT, "processProperties: color = " + dict.getString("color"))
             setColor(TiConvert.toColor(dict, "color"))
         }
     }
 
-    override fun propertyChanged(key: String, oldValue: Any, newValue: Any, proxy: KrollProxy) {
+    override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         if (outerView == null) {
             return
         }
+
         if (key == "color") {
-            Log.d(LCAT, "propertyChanged: color : from = $oldValue : to = $newValue")
-            setColor(TiConvert.toColor(newValue.toString()))
+            Log.d(LCAT, "propertyChanged: color = $newValue")
+            setColor(TiConvert.toColor(newValue?.toString()))
         }
     }
 
@@ -125,10 +136,21 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         outerView.setBackgroundColor(color)
     }
 
-    private fun createCameraPreview() {
-        val layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    fun createCameraPreview() {
+        // avoid re-creating the camera-view
+        if (isCameraViewAvailable) {
+            Log.d(LCAT, "****** camera-view already added…")
+            return
+        }
+
+        Log.d(LCAT, "****** creating camera-view 2 …")
+
+        val layoutParams = TiCompositeLayout.LayoutParams()
+        layoutParams.autoFillsHeight = true
+        layoutParams.autoFillsWidth = true
         cameraView = PreviewView(proxy.activity)
         rootView.addView(cameraView, layoutParams)
+        Log.d(LCAT, "****** camera-view added…")
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(TiApplication.getAppCurrentActivity())
 
