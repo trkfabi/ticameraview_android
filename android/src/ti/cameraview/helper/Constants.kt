@@ -1,6 +1,6 @@
 package ti.cameraview.helper
 
-object Defaults {
+object Constants {
     object Properties {
         // properties to be exposed through module
         const val TORCH_MODE = "torchMode"
