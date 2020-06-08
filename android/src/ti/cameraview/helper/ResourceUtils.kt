@@ -14,7 +14,7 @@ import org.appcelerator.titanium.view.TiDrawableReference
 import ti.modules.titanium.filesystem.FileProxy
 
 object ResourceUtils {
-    val CONTEXT: Context = TiApplication.getInstance().applicationContext
+    @JvmField val CONTEXT: Context = TiApplication.getInstance().applicationContext
 
     fun convertDpToPx(dp: Float): Float {
         return dp * CONTEXT.resources?.displayMetrics?.density!!
