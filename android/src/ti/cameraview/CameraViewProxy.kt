@@ -15,6 +15,7 @@ import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
+import ti.cameraview.camera.CameraFeatures
 import ti.cameraview.camera.CameraView
 import ti.cameraview.helper.PermissionHandler
 
@@ -34,7 +35,9 @@ class CameraViewProxy : TiViewProxy() {
 
     @Kroll.method
     public fun createCameraView() {
-        if (!PermissionHandler.hasCameraPermission() || !PermissionHandler.hasStoragePermission()) {
+        if (!CameraFeatures.isCameraSupported() ||
+                !PermissionHandler.hasCameraPermission() ||
+                !PermissionHandler.hasStoragePermission()) {
             Log.d(CameraView.LCAT, "Camera permissions missing. Use Ti.Media.requestCameraPermissions to request required permissions")
             return
         }
