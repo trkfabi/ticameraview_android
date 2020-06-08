@@ -1,91 +1,68 @@
 package ti.cameraview.camera
 
-import android.util.Log
-import android.Manifest
-import android.app.Activity
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Parcel
-import android.os.Parcelable
-import android.util.Rational
-import android.view.MotionEvent
-import android.view.ViewGroup
-import android.widget.Toast
-import androidx.camera.core.AspectRatio
-import androidx.camera.core.Camera
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.Preview
-import androidx.camera.view.PreviewView
-import androidx.core.view.doOnLayout
-import androidx.core.content.ContextCompat
-import org.appcelerator.kroll.KrollDict
-import org.appcelerator.kroll.KrollProxy
-import org.appcelerator.titanium.TiBaseActivity
-import org.appcelerator.titanium.TiC
-import org.appcelerator.titanium.proxy.TiViewProxy
-import org.appcelerator.titanium.util.TiActivityResultHandler
-import org.appcelerator.titanium.util.TiConvert
-import org.appcelerator.titanium.view.TiCompositeLayout
-import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement
-import org.appcelerator.titanium.view.TiUIView
-import ti.cameraview.helper.Defaults
-import ti.cameraview.helper.PermissionHandler
-import ti.cameraview.helper.ResourceUtils
-import java.lang.Exception
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 import android.annotation.SuppressLint
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.Image
 import android.net.Uri
-import android.os.Bundle
 import android.os.Environment
-import android.util.Size
-import android.view.Menu
-import android.view.MenuItem
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import androidx.appcompat.app.AppCompatActivity
+import android.util.Log
+import android.view.MotionEvent
+import android.widget.Toast
 import androidx.camera.core.*
-import androidx.camera.core.TorchState.OFF
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.TextureViewMeteringPointFactory
-import androidx.core.app.ActivityCompat
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import org.appcelerator.kroll.KrollDict
+import org.appcelerator.kroll.KrollProxy
 import org.appcelerator.titanium.TiApplication
+import org.appcelerator.titanium.TiC
+import org.appcelerator.titanium.proxy.TiViewProxy
+import org.appcelerator.titanium.util.TiConvert
+import org.appcelerator.titanium.util.TiFileHelper
+import org.appcelerator.titanium.view.TiCompositeLayout
+import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement
+import org.appcelerator.titanium.view.TiUIView
+import ti.cameraview.constant.Defaults
+import ti.cameraview.helper.PermissionHandler
+import ti.modules.titanium.media.MediaModule
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 
 class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
+    private var aspectRatio = Defaults.ASPECT_RATIO_4_3
+    private var torchMode = Defaults.TORCH_MODE_OFF
+    private var flashMode = Defaults.FLASH_MODE_AUTO
+    private var scaleType = Defaults.SCALE_TYPE_FIT_CENTER
+    private var focusMode = Defaults.FOCUS_MODE_AUTO
+    private var resumeAutoFocus = Defaults.RESUME_AUTO_FOCUS_ON_AFTER_FOCUS_MODE_TAP
+    private var autoFocusResumeTime = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
+
     private var rootView: TiCompositeLayout
-    private lateinit var cameraView: PreviewView
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
     private var camera: Camera? = null
     private lateinit var cameraExecutor: ExecutorService
+    private lateinit var cameraView: PreviewView
 
-    // getter
-    private val isCameraViewAvailable get() = this::cameraView.isInitialized
+    private val IsCameraViewAvailable get() = this::cameraView.isInitialized
+    private val ThisActivity get() = proxy.activity
+    private val MainExecutor get() = ContextCompat.getMainExecutor(ThisActivity)
+
 
     companion object {
-        val LCAT = "CameraView"
-        val REQUEST_CODE_PERMISSIONS = 100
-        val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        const val LCAT = "CameraView"
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
     }
 
-    init {
-        cameraExecutor = Executors.newSingleThreadExecutor()
 
+    init {
         var arrangement = LayoutArrangement.DEFAULT
 
         if (proxy.hasProperty(TiC.PROPERTY_LAYOUT)) {
@@ -98,15 +75,20 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         }
 
         // hold a reference to the proxy's root view to add camera-preview later
-        rootView = TiCompositeLayout(proxy.activity, arrangement)
+        rootView = TiCompositeLayout(ThisActivity, arrangement)
 
-        if (PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
+        if (CameraFeatures.isCameraSupported() &&
+                PermissionHandler.hasCameraPermission() &&
+                PermissionHandler.hasStoragePermission()) {
             Log.d(LCAT, "****** creating camera-view 1…")
             createCameraPreview()
         }
 
         setNativeView(rootView)
+
+        cameraExecutor = Executors.newSingleThreadExecutor()
     }
+
 
     override fun processProperties(dict: KrollDict) {
         super.processProperties(dict)
@@ -114,31 +96,17 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         if (outerView == null) {
             return
         }
-
-        if (dict.containsKey("color")) {
-            Log.d(LCAT, "processProperties: color = " + dict.getString("color"))
-            setColor(TiConvert.toColor(dict, "color"))
-        }
     }
 
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         if (outerView == null) {
             return
         }
-
-        if (key == "color") {
-            Log.d(LCAT, "propertyChanged: color = $newValue")
-            setColor(TiConvert.toColor(newValue?.toString()))
-        }
-    }
-
-    private fun setColor(color: Int) {
-        outerView.setBackgroundColor(color)
     }
 
     fun createCameraPreview() {
         // avoid re-creating the camera-view
-        if (isCameraViewAvailable) {
+        if (IsCameraViewAvailable) {
             Log.d(LCAT, "****** camera-view already added…")
             return
         }
@@ -148,7 +116,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         val layoutParams = TiCompositeLayout.LayoutParams()
         layoutParams.autoFillsHeight = true
         layoutParams.autoFillsWidth = true
-        cameraView = PreviewView(proxy.activity)
+        cameraView = PreviewView(ThisActivity)
         rootView.addView(cameraView, layoutParams)
         Log.d(LCAT, "****** camera-view added…")
 
@@ -163,69 +131,133 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                 val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
 
-                val aspect = AspectRatio.RATIO_16_9
-
                 preview = Preview.Builder()
-                        .setTargetAspectRatio(aspect)
+                        .setTargetAspectRatio(aspectRatio)
                         .build()
 
                 preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
 
                 imageCapture = ImageCapture.Builder()
-                        .setFlashMode(ImageCapture.FLASH_MODE_ON)
-                        .setTargetAspectRatio(aspect)
+                        .setFlashMode(flashMode)
+                        .setTargetAspectRatio(aspectRatio)
                         .build()
 
-                // sets the image output dimensions ratio { DOES NOT WORK PROPERLY IN ASPECT RATIO 16_9 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    imageCapture?.setCropAspectRatio(Rational(1, 1))
-                }
-
-                imageCapture?.flashMode = ImageCapture.FLASH_MODE_ON
+//                // sets the image output dimensions ratio { DOES NOT WORK PROPERLY IN ASPECT RATIO 16_9 }
+//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//                    imageCapture?.setCropAspectRatio(Rational(1, 1))
+//                }
 
                 camera = cameraProvider.bindToLifecycle(TiApplication.getAppCurrentActivity() as LifecycleOwner, cameraSelector, preview, imageCapture)
-                imageCapture?.flashMode = ImageCapture.FLASH_MODE_ON
-
-                // autoFocusOnInterval()
-                cameraView.setOnTouchListener { v, event ->
-                    if (event.action == MotionEvent.ACTION_UP) {
-                        return@setOnTouchListener false
-                    }
-
-                    if (event.action == MotionEvent.ACTION_DOWN) {
-                        autoFocusOnTap(v, event)
-                        true
-                    }
-
-                    false
-                }
 
             } catch(exc: Exception) {
                 Log.e(LCAT, "Use case binding failed", exc)
             }
 
-        }, ContextCompat.getMainExecutor(proxy.activity))
+        }, MainExecutor)
 
         Log.d(LCAT, "****** startCamera…")
     }
 
-    @SuppressLint("RestrictedApi")
-    private fun autoFocusOnTap(view: View?, event: MotionEvent) {
-        cameraView.doOnLayout {
-            Log.i(LCAT, "view finder : ${cameraView.width} : ${cameraView.height}")
+    @SuppressLint("ClickableViewAccessibility")
+    private fun updateAutoFocusMode() {
+        if (focusMode == Defaults.FOCUS_MODE_TAP) {
+            cameraView.setOnTouchListener { view, event ->
+                when(event.action) {
+                    MotionEvent.ACTION_UP -> view.performClick()
+                    MotionEvent.ACTION_DOWN -> CameraFeatures.changeFocusMode(camera, cameraView, event, resumeAutoFocus, autoFocusResumeTime)
+                }
+                return@setOnTouchListener true
+            }
+
+        } else if (focusMode == Defaults.FOCUS_MODE_AUTO) {
+            // resets the auto-focus to continous mode
+            camera?.cameraControl?.cancelFocusAndMetering()
+        }
+    }
+
+    private fun takePhoto() {
+        // Get a stable reference of the modifiable image capture use case
+        val imageCapture = imageCapture ?: return
+
+        // Create timestamped output file to hold the image
+        val photoFile = File(ThisActivity.cacheDir, SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+                .format(System.currentTimeMillis()) + ".jpg")
+
+        // Create output options object which contains file + metadata
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+        imageCapture.takePicture(outputOptions, MainExecutor, object : ImageCapture.OnImageSavedCallback {
+            override fun onError(exc: ImageCaptureException) {
+                Log.e(LCAT, "Photo capture failed: ${exc.message}", exc)
+            }
+
+            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                val savedUri = Uri.fromFile(photoFile)
+                val msg = "Photo saved at `CameraX` folder"
+                Toast.makeText(ThisActivity, msg, Toast.LENGTH_SHORT).show()
+                Log.d(LCAT, msg)
+            }
+        })
+    }
+
+    private fun saveImageAsBitmap() {
+        imageCapture?.takePicture(MainExecutor,
+                object : ImageCapture.OnImageCapturedCallback() {
+                    fun onError(error: ImageCapture.ImageCaptureError, message: String, exc: Throwable?) {
+                        Toast.makeText(ThisActivity, "Error in image capture", Toast.LENGTH_SHORT).show()
+                    }
+
+                    @SuppressLint("UnsafeExperimentalUsageError")
+                    fun onCaptureSuccess(imageProxy: ImageProxy, rotationDegrees: Int) {
+                        imageProxy.image?.let {
+                            val bitmap = rotateImage(imageToBitmap(it), rotationDegrees.toFloat())
+                        }
+                    }
+                }
+        )
+    }
+
+    private fun rotateImage(source: Bitmap, angle: Float): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(angle)
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+
+    private fun imageToBitmap(image: Image): Bitmap {
+        val buffer = image.planes[0].buffer
+        val bytes = ByteArray(buffer.capacity())
+        buffer.get(bytes)
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, null)
+    }
+
+    @SuppressLint("WrongConstant")
+    private fun toggleFlashlight() {
+        if (camera?.cameraInfo?.hasFlashUnit() == false) return
+
+        when (imageCapture?.flashMode) {
+            // TODO()
+        }
+    }
+
+    private fun toggleTorch() {
+        if (camera?.cameraInfo?.hasFlashUnit() == false) return
+
+        val torchState = camera?.cameraInfo?.torchState
+        camera?.cameraControl?.enableTorch(torchState?.value == TorchState.OFF)
+    }
+
+    private fun getFile(isPublic: Boolean): File? {
+        var file: File? = null
+        val fileType = Environment.DIRECTORY_PICTURES
+        val dir = if (isPublic) Environment.getExternalStoragePublicDirectory(fileType) else TiApplication.getInstance().getExternalFilesDir(fileType)
+        val appDir = File(dir, TiApplication.getInstance().appInfo.name);
+
+        if (!appDir.exists() && !appDir.mkdirs()) {
+            Log.e("TiMedia", "Failed to create external storage directory.");
+        } else {
+            file = TiFileHelper.getInstance().getTempFile(appDir, Defaults.IMAGE_EXTENSION, !isPublic);
         }
 
-        val meteringFactory = SurfaceOrientedMeteringPointFactory(cameraView.width.toFloat(), cameraView.height.toFloat())
-        val meteringPoint = meteringFactory.createPoint(event.x, event.y);
-        val size = MeteringPointFactory.getDefaultPointSize()
-
-        Log.i(LCAT, "**** Meter Data: ${size} : ${meteringPoint.x} : ${meteringPoint.y} :: Event ${event.x}: ${event.y}")
-
-        val action = FocusMeteringAction.Builder(meteringPoint)
-                .disableAutoCancel()    // disable auto-focus onwards when this metering action is executed
-//            .setAutoCancelDuration(5, TimeUnit.SECONDS)   // resume auto-focus
-                .build()
-
-        camera?.cameraControl?.startFocusAndMetering(action)
+        return file;
     }
 }
