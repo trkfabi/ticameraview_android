@@ -36,11 +36,11 @@ import java.util.concurrent.Executors
 
 
 class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
-    private var aspectRatio = Defaults.ASPECT_RATIO_4_3
     private var torchMode = Defaults.TORCH_MODE_OFF
     private var flashMode = Defaults.FLASH_MODE_AUTO
-    private var scaleType = Defaults.SCALE_TYPE_FIT_CENTER
     private var focusMode = Defaults.FOCUS_MODE_AUTO
+    private var aspectRatio = Defaults.ASPECT_RATIO_4_3
+    private var scaleType = Defaults.SCALE_TYPE_FIT_CENTER
     private var resumeAutoFocus = Defaults.RESUME_AUTO_FOCUS_ON_AFTER_FOCUS_MODE_TAP
     private var autoFocusResumeTime = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
 
@@ -99,6 +99,8 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     }
 
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
+        super.propertyChanged(key, oldValue, newValue, proxy)
+
         if (outerView == null) {
             return
         }
@@ -116,8 +118,12 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         val layoutParams = TiCompositeLayout.LayoutParams()
         layoutParams.autoFillsHeight = true
         layoutParams.autoFillsWidth = true
+
         cameraView = PreviewView(ThisActivity)
+        cameraView.scaleType = scaleType
+
         rootView.addView(cameraView, layoutParams)
+
         Log.d(LCAT, "****** camera-view added…")
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(TiApplication.getAppCurrentActivity())
@@ -147,7 +153,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 //                    imageCapture?.setCropAspectRatio(Rational(1, 1))
 //                }
 
-                camera = cameraProvider.bindToLifecycle(TiApplication.getAppCurrentActivity() as LifecycleOwner, cameraSelector, preview, imageCapture)
+                camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
 
             } catch(exc: Exception) {
                 Log.e(LCAT, "Use case binding failed", exc)
