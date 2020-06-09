@@ -17,13 +17,33 @@ import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.camera.CameraFeatures
 import ti.cameraview.camera.CameraView
+import ti.cameraview.constant.Defaults
+import ti.cameraview.constant.Properties
 import ti.cameraview.helper.PermissionHandler
 
 
-@proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = ["color"])
+@proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
+    Properties.TORCH_MODE,
+    Properties.FLASH_MODE,
+    Properties.FOCUS_MODE,
+    Properties.ASPECT_RATIO,
+    Properties.SCALE_TYPE,
+    Properties.RESUME_AUTO_FOCUS,
+    Properties.AUTO_FOCUS_RESUME_TIME
+])
 class CameraViewProxy : TiViewProxy() {
     companion object {
         const val LCAT = "CameraViewProxy"
+    }
+
+    init {
+        defaultValues[Properties.TORCH_MODE] = Defaults.TORCH_MODE_OFF
+        defaultValues[Properties.FLASH_MODE] = Defaults.FLASH_MODE_AUTO
+        defaultValues[Properties.FOCUS_MODE] = Defaults.FOCUS_MODE_AUTO
+        defaultValues[Properties.ASPECT_RATIO] = Defaults.ASPECT_RATIO_4_3
+        defaultValues[Properties.SCALE_TYPE] = Defaults.SCALE_TYPE_FIT_CENTER
+        defaultValues[Properties.RESUME_AUTO_FOCUS] = Defaults.RESUME_AUTO_FOCUS_ON_AFTER_FOCUS_MODE_TAP
+        defaultValues[Properties.AUTO_FOCUS_RESUME_TIME] = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
     }
 
     override fun createView(activity: Activity): TiUIView {
