@@ -5,12 +5,14 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Build
+import androidx.camera.view.PreviewView
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.titanium.TiApplication
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.util.TiConvert
 import org.appcelerator.titanium.util.TiRHelper
 import org.appcelerator.titanium.view.TiDrawableReference
+import ti.cameraview.constant.Defaults
 import ti.modules.titanium.filesystem.FileProxy
 
 object ResourceUtils {
@@ -30,6 +32,10 @@ object ResourceUtils {
         } catch (exc: Exception) {
             -1
         }
+    }
+
+    fun validateProperty(any: Any, key:String): Boolean {
+        return (any is KrollDict && any.containsKeyAndNotNull(key)) || (any is String && any == key)
     }
 
     fun getObjectOption(options: KrollDict, key: String): Any? {
@@ -96,5 +102,17 @@ object ResourceUtils {
         }
 
         return imageDrawableReference?.densityScaledDrawable
+    }
+
+    @JvmStatic fun getScaleType(scaleType: Int): PreviewView.ScaleType {
+        return when(scaleType) {
+            Defaults.SCALE_TYPE_FILL_START -> PreviewView.ScaleType.FILL_START
+            Defaults.SCALE_TYPE_FILL_CENTER -> PreviewView.ScaleType.FILL_CENTER
+            Defaults.SCALE_TYPE_FILL_END -> PreviewView.ScaleType.FILL_END
+            Defaults.SCALE_TYPE_FIT_START -> PreviewView.ScaleType.FIT_START
+            Defaults.SCALE_TYPE_FIT_CENTER -> PreviewView.ScaleType.FIT_CENTER
+            Defaults.SCALE_TYPE_FIT_END -> PreviewView.ScaleType.FIT_END
+            else -> PreviewView.ScaleType.FILL_CENTER
+        }
     }
 }
