@@ -9,7 +9,6 @@
 package ti.cameraview
 
 import android.app.Activity
-import android.os.Bundle
 import android.util.Log
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
@@ -18,18 +17,25 @@ import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.camera.CameraFeatures
 import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
-import ti.cameraview.constant.Properties
 import ti.cameraview.helper.PermissionHandler
+
+import ti.cameraview.constant.Properties.TORCH_MODE
+import ti.cameraview.constant.Properties.FLASH_MODE
+import ti.cameraview.constant.Properties.ASPECT_RATIO
+import ti.cameraview.constant.Properties.SCALE_TYPE
+import ti.cameraview.constant.Properties.FOCUS_MODE
+import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
+import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
-    Properties.TORCH_MODE,
-    Properties.FLASH_MODE,
-    Properties.FOCUS_MODE,
-    Properties.ASPECT_RATIO,
-    Properties.SCALE_TYPE,
-    Properties.RESUME_AUTO_FOCUS,
-    Properties.AUTO_FOCUS_RESUME_TIME
+    TORCH_MODE,
+    FLASH_MODE,
+    ASPECT_RATIO,
+    SCALE_TYPE,
+    FOCUS_MODE,
+    RESUME_AUTO_FOCUS,
+    AUTO_FOCUS_RESUME_TIME
 ])
 class CameraViewProxy : TiViewProxy() {
     companion object {
@@ -37,13 +43,13 @@ class CameraViewProxy : TiViewProxy() {
     }
 
     init {
-        defaultValues[Properties.TORCH_MODE] = Defaults.TORCH_MODE_OFF
-        defaultValues[Properties.FLASH_MODE] = Defaults.FLASH_MODE_AUTO
-        defaultValues[Properties.FOCUS_MODE] = Defaults.FOCUS_MODE_AUTO
-        defaultValues[Properties.ASPECT_RATIO] = Defaults.ASPECT_RATIO_4_3
-        defaultValues[Properties.SCALE_TYPE] = Defaults.SCALE_TYPE_FIT_CENTER
-        defaultValues[Properties.RESUME_AUTO_FOCUS] = Defaults.RESUME_AUTO_FOCUS_ON_AFTER_FOCUS_MODE_TAP
-        defaultValues[Properties.AUTO_FOCUS_RESUME_TIME] = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
+        defaultValues[TORCH_MODE] = Defaults.TORCH_MODE_OFF
+        defaultValues[FLASH_MODE] = Defaults.FLASH_MODE_AUTO
+        defaultValues[ASPECT_RATIO] = Defaults.ASPECT_RATIO_4_3
+        defaultValues[SCALE_TYPE] = Defaults.SCALE_TYPE_FIT_CENTER
+        defaultValues[FOCUS_MODE] = Defaults.FOCUS_MODE_AUTO
+        defaultValues[RESUME_AUTO_FOCUS] = Defaults.RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP
+        defaultValues[AUTO_FOCUS_RESUME_TIME] = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
     }
 
     override fun createView(activity: Activity): TiUIView {
@@ -55,13 +61,15 @@ class CameraViewProxy : TiViewProxy() {
 
     @Kroll.method
     public fun createCameraView() {
-        if (!CameraFeatures.isCameraSupported() ||
-                !PermissionHandler.hasCameraPermission() ||
-                !PermissionHandler.hasStoragePermission()) {
+        if (CameraFeatures.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
+            // create camera view if not ready yet
+            (view as CameraView).apply {
+                if (!this.isCameraReady()) {
+                    this.createCameraPreview()
+                }
+            }
+        } else {
             Log.d(CameraView.LCAT, "Camera permissions missing. Use Ti.Media.requestCameraPermissions to request required permissions")
-            return
         }
-
-        (view as CameraView).createCameraPreview()
     }
 }
