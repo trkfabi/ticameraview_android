@@ -26,31 +26,6 @@ object CameraFeatures {
         return ResourceUtils.CONTEXT.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
     }
 
-    @JvmStatic fun changeFocusMode(camera: Camera?,
-                                   cameraView: PreviewView,
-                                   event: MotionEvent,
-                                   resumeAutoFocus: Boolean,
-                                   autoFocusResumeTime: Int) {
-        cameraView.doOnLayout {
-            val meteringFactory = SurfaceOrientedMeteringPointFactory(it.width.toFloat(), it.height.toFloat())
-            val meteringPoint = meteringFactory.createPoint(event.x, event.y);
-            var action: FocusMeteringAction;
-
-            if (resumeAutoFocus) {
-                action = FocusMeteringAction.Builder(meteringPoint)
-                        .setAutoCancelDuration(autoFocusResumeTime.toLong(), TimeUnit.SECONDS)
-                        .build()
-            } else {
-                action = FocusMeteringAction.Builder(meteringPoint)
-                        .disableAutoCancel()
-                        .build()
-            }
-
-            camera?.cameraControl?.startFocusAndMetering(action)
-        }
-    }
-
-
     @JvmStatic fun getCameraFeature(context: Context): String {
         var msg = ""
 
