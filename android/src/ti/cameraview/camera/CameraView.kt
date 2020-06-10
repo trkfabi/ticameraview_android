@@ -28,6 +28,8 @@ import org.appcelerator.titanium.view.TiCompositeLayout
 import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.constant.Defaults
+import ti.cameraview.constant.Defaults.FOCUS_MODE_AUTO
+import ti.cameraview.constant.Defaults.FOCUS_MODE_TAP
 import ti.cameraview.constant.Properties.TORCH_MODE
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.ASPECT_RATIO
@@ -126,6 +128,12 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             FLASH_MODE -> handleFlash()
             ASPECT_RATIO -> handleAspectRatio()
             SCALE_TYPE -> handleScaleType()
+            FOCUS_MODE -> {
+                // resets the focus-mode to continuous auto-focus
+                if (Utils().getInt(FOCUS_MODE) == FOCUS_MODE_AUTO) {
+                    camera?.cameraControl?.cancelFocusAndMetering()
+                }
+            }
         }
     }
 
@@ -159,33 +167,28 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     private fun handleFocusMode() {
         Log.d(LCAT, "** handleFocusMode called…")
 
-        cameraView.setOnTouchListener { view, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                when(Utils().getInt(FOCUS_MODE)) {
-                    // resets the focus-mode to continous auto-focus
-                    Defaults.FOCUS_MODE_AUTO -> camera?.cameraControl?.cancelFocusAndMetering()
+        cameraView.setOnTouchListener { _, event ->
+            Log.d(LCAT, "** setOnTouchListener called…")
+            // resets the focus-mode to tap-to-focus
+            if (event?.action == MotionEvent.ACTION_DOWN && Utils().getInt(FOCUS_MODE) == FOCUS_MODE_TAP) {
+                if (camera?.cameraControl != null) {
+                    Log.d(LCAT, "** setOnTouchListener : focusing on tap…")
+                    val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
+                    val meteringPoint = meteringFactory.createPoint(event.x, event.y)
 
-                    // resets the focus-mode to tap-to-focus
-                    Defaults.FOCUS_MODE_TAP -> {
-                        if (camera?.cameraControl != null) {
-                            val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
-                            val meteringPoint = meteringFactory.createPoint(event.x, event.y)
-
-                            val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS)) {
-                                FocusMeteringAction.Builder(meteringPoint)
-                                        .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME).toLong(), TimeUnit.SECONDS)
-                            } else {
-                                FocusMeteringAction.Builder(meteringPoint)
-                                        .disableAutoCancel()
-                            }
-
-                            camera?.cameraControl?.startFocusAndMetering(action.build())
-                        }
+                    val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS)) {
+                        FocusMeteringAction.Builder(meteringPoint)
+                                .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME).toLong(), TimeUnit.SECONDS)
+                    } else {
+                        FocusMeteringAction.Builder(meteringPoint)
+                                .disableAutoCancel()
                     }
+
+                    camera?.cameraControl?.startFocusAndMetering(action.build())
                 }
             }
 
-            return@setOnTouchListener true
+            true
         }
     }
     // {END} -> module-property handlers
