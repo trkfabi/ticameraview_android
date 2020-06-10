@@ -37,7 +37,6 @@ import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
-import ti.cameraview.helper.ResourceUtils.validateProperty
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -52,6 +51,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     private var imageCapture: ImageCapture? = null
     private var camera: Camera? = null
     private var cameraExecutor: ExecutorService
+    private lateinit var cameraSelector: CameraSelector
     private lateinit var cameraView: PreviewView
 
     private val ThisActivity get() = proxy.activity
@@ -76,6 +76,10 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
 
     init {
+        for (i in proxy.properties) {
+            Log.d(LCAT, "constructor :: ${i.key} + : ${i.value}")
+        }
+
         var arrangement = LayoutArrangement.DEFAULT
 
         if (proxy.hasProperty(TiC.PROPERTY_LAYOUT)) {
@@ -107,17 +111,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         return this::cameraView.isInitialized
     }
 
-    override fun processProperties(dict: KrollDict) {
-        super.processProperties(dict)
-
-        if (outerView == null) {
-            Log.d(LCAT, "view-container not created")
-            return
-        }
-
-        handlePropertyChanges(dict)
-    }
-
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
@@ -126,75 +119,77 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             return
         }
 
-        handlePropertyChanges(key)
+        Log.d(LCAT, "propertyChanged : $key : from ${oldValue ?: "null"} to $newValue")
+
+        when(key) {
+            TORCH_MODE -> handleTorch()
+            FLASH_MODE -> handleFlash()
+            ASPECT_RATIO -> handleAspectRatio()
+            SCALE_TYPE -> handleScaleType()
+        }
     }
 
-    private fun handlePropertyChanges(any: Any) {
-        if ( validateProperty(any, TORCH_MODE) ) handleTorch()
-        if ( validateProperty(any, FLASH_MODE) ) handleFlash()
-        if ( validateProperty(any, ASPECT_RATIO) ) handleAspectRatio()
-        if ( validateProperty(any, SCALE_TYPE) ) handleScaleType()
-        if ( validateProperty(any, FOCUS_MODE) ) handleFocusMode()
-        if ( validateProperty(any, RESUME_AUTO_FOCUS) ) handleFocusMode()
-        if ( validateProperty(any, AUTO_FOCUS_RESUME_TIME) ) handleFocusMode()
-    }
 
-    // module-propery handlers -> START
+    // {START} -> module-property handlers
     private fun handleTorch() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             camera?.cameraControl?.enableTorch( Utils().getBoolean(TORCH_MODE) )
+            Log.d(LCAT, "** handleTorch : ${Utils().getBoolean(TORCH_MODE)}")
         }
     }
 
     private fun handleFlash() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             imageCapture?.flashMode = Utils().getInt(FLASH_MODE)
+            Log.d(LCAT, "** handleFlash : ${Utils().getInt(FLASH_MODE)}")
         }
     }
 
     private fun handleAspectRatio() {
+        Log.d(LCAT, "** handleAspectRatio")
         createCameraPreview(rebindView = true)
     }
 
     private fun handleScaleType() {
+        Log.d(LCAT, "** handleScaleType")
         cameraView?.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE))
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun handleFocusMode() {
-        // TODO(): check what happens if we attach multiple onTouchListeners
+        Log.d(LCAT, "** handleFocusMode called…")
 
-        when(Utils().getInt(FOCUS_MODE)) {
-            Defaults.FOCUS_MODE_AUTO -> {
-                // resets the auto-focus to continous mode
-                camera?.cameraControl?.cancelFocusAndMetering()
-            }
-            Defaults.FOCUS_MODE_TAP -> {
-                cameraView.setOnTouchListener { view, event ->
-                    if (event.action == MotionEvent.ACTION_DOWN) {
-                        cameraView.doOnLayout {
-                            val meteringFactory = SurfaceOrientedMeteringPointFactory(it.width.toFloat(), it.height.toFloat())
-                            val meteringPoint = meteringFactory.createPoint(event.x, event.y);
+        cameraView.setOnTouchListener { view, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                when(Utils().getInt(FOCUS_MODE)) {
+                    // resets the focus-mode to continous auto-focus
+                    Defaults.FOCUS_MODE_AUTO -> camera?.cameraControl?.cancelFocusAndMetering()
+
+                    // resets the focus-mode to tap-to-focus
+                    Defaults.FOCUS_MODE_TAP -> {
+                        if (camera?.cameraControl != null) {
+                            val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
+                            val meteringPoint = meteringFactory.createPoint(event.x, event.y)
 
                             val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS)) {
                                 FocusMeteringAction.Builder(meteringPoint)
                                         .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME).toLong(), TimeUnit.SECONDS)
-                                        .build()
                             } else {
                                 FocusMeteringAction.Builder(meteringPoint)
                                         .disableAutoCancel()
-                                        .build()
                             }
 
-                            camera?.cameraControl?.startFocusAndMetering(action)
+                            camera?.cameraControl?.startFocusAndMetering(action.build())
                         }
                     }
-                    return@setOnTouchListener true
                 }
             }
+
+            return@setOnTouchListener true
         }
     }
-    // module-propery handlers -> END
+    // {END} -> module-property handlers
+
 
     fun createCameraPreview(rebindView: Boolean = false) {
         if (!rebindView) {
@@ -207,6 +202,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
             cameraView = PreviewView(ThisActivity)
             handleScaleType()
+            handleFocusMode()
 
             rootView.addView(cameraView, layoutParams)
             Log.d(LCAT, "****** camera-view created…")
@@ -214,40 +210,42 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             Log.d(LCAT, "****** camera-view already added…")
         }
 
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(ThisActivity)
+        ProcessCameraProvider.getInstance(ThisActivity).apply {
+            addListener(Runnable {
+                val cameraProvider: ProcessCameraProvider = get()
 
-        cameraProviderFuture.addListener(Runnable {
-            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+                try {
+                    // Unbind use cases before rebinding
+                    cameraProvider.unbindAll()
 
-            try {
-                // Unbind use cases before rebinding
-                cameraProvider.unbindAll()
+                    cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
 
-                val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+                    preview = Preview.Builder()
+                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO))
+                            .build()
 
-                preview = Preview.Builder()
-                        .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO))
-                        .build()
+                    preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
 
-                preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
+                    imageCapture = ImageCapture.Builder()
+                            .setFlashMode(Utils().getInt(FLASH_MODE))
+                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO))
+                            .build()
 
-                imageCapture = ImageCapture.Builder()
-                        .setFlashMode(Utils().getInt(FLASH_MODE))
-                        .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO))
-                        .build()
+    //                // sets the image output dimensions ratio { DOES NOT WORK PROPERLY IN ASPECT RATIO 16_9 }
+    //                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+    //                    imageCapture?.setCropAspectRatio(Rational(1, 1))
+    //                }
 
-//                // sets the image output dimensions ratio { DOES NOT WORK PROPERLY IN ASPECT RATIO 16_9 }
-//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-//                    imageCapture?.setCropAspectRatio(Rational(1, 1))
-//                }
+                    camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
 
-                camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
+                    handleTorch()
 
-            } catch(exc: Exception) {
-                Log.e(LCAT, "Use case binding failed", exc)
-            }
+                } catch(exc: Exception) {
+                    Log.e(LCAT, "Use case binding failed", exc)
+                }
 
-        }, MainExecutor)
+            }, MainExecutor)
+        }
 
         Log.d(LCAT, "****** startCamera…")
     }

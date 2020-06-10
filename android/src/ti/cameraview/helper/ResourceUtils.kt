@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.util.Log
 import androidx.camera.view.PreviewView
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.titanium.TiApplication
@@ -12,6 +13,7 @@ import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.util.TiConvert
 import org.appcelerator.titanium.util.TiRHelper
 import org.appcelerator.titanium.view.TiDrawableReference
+import ti.cameraview.TicameraviewModule
 import ti.cameraview.constant.Defaults
 import ti.modules.titanium.filesystem.FileProxy
 
@@ -32,10 +34,6 @@ object ResourceUtils {
         } catch (exc: Exception) {
             -1
         }
-    }
-
-    fun validateProperty(any: Any, key:String): Boolean {
-        return (any is KrollDict && any.containsKeyAndNotNull(key)) || (any is String && any == key)
     }
 
     fun getObjectOption(options: KrollDict, key: String): Any? {

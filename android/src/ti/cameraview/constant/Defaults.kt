@@ -9,15 +9,16 @@ import androidx.camera.core.AspectRatio
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.TorchState
 import androidx.camera.view.PreviewView
+import org.appcelerator.kroll.annotations.Kroll
 
 object Defaults {
     const val IMAGE_EXTENSION = ".jpg"
 
-    const val ASPECT_RATIO_4_3 = AspectRatio.RATIO_4_3
-    const val ASPECT_RATIO_16_9 = AspectRatio.RATIO_16_9
-
     const val TORCH_MODE_OFF = TorchState.OFF
     const val TORCH_MODE_ON = TorchState.ON
+
+    const val ASPECT_RATIO_4_3 = AspectRatio.RATIO_4_3
+    const val ASPECT_RATIO_16_9 = AspectRatio.RATIO_16_9
 
     const val FLASH_MODE_AUTO = ImageCapture.FLASH_MODE_AUTO
     const val FLASH_MODE_ON = ImageCapture.FLASH_MODE_ON
