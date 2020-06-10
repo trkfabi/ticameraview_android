@@ -74,6 +74,10 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         fun getInt(key: String): Int {
             return TiConvert.toInt(proxy.getProperty(key))
         }
+
+        fun getColor(key: String): Int {
+            return TiConvert.toColor(proxy.getProperty(key) as String?)
+        }
     }
 
 
@@ -204,6 +208,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             layoutParams.autoFillsWidth = true
 
             cameraView = PreviewView(ThisActivity)
+            cameraView.setBackgroundColor(Utils().getColor(TiC.PROPERTY_BACKGROUND_COLOR))
             handleScaleType()
             handleFocusMode()
 

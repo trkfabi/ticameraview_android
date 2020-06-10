@@ -26,13 +26,9 @@ object CameraFeatures {
         return ResourceUtils.CONTEXT.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
     }
 
-    @JvmStatic fun getCameraFeature(context: Context): String {
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    @JvmStatic fun getCameraFeature(context: Context): String? {
         var msg = ""
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-            return msg
-        }
-
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         try {
@@ -59,23 +55,6 @@ object CameraFeatures {
 
                 val logicalCapabilities = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
                 msg += "\nAvailable logicalCapabilities : " + Arrays.toString(logicalCapabilities)
-
-                var idText = ""
-                val physicalIds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    characteristics.physicalCameraIds
-                } else {
-                    TODO("VERSION.SDK_INT < P")
-                }
-
-                if (physicalIds.size == 0) {
-                    idText = "No physical camera available"
-                } else {
-                    for (id in physicalIds) {
-                        idText += "$id, "
-                    }
-                }
-
-                msg += "\nPhysical cameras : $idText"
                 msg += "\n\n"
             }
         } catch (e: CameraAccessException) {
