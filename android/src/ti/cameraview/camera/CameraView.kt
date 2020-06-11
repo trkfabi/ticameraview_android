@@ -113,11 +113,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
-    // check whether camera is ready to use
-    fun isCameraReady(): Boolean {
-        return this::cameraView.isInitialized
-    }
-
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
@@ -140,6 +135,21 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                 }
             }
         }
+    }
+
+    override fun release() {
+        rootView.removeAllViews()
+
+        if (preview != null) preview = null
+        if (imageCapture != null) imageCapture = null
+        if (camera != null) camera = null
+
+        super.release()
+    }
+
+    // check whether camera is ready to use
+    fun isCameraReady(): Boolean {
+        return this::cameraView.isInitialized
     }
 
 
