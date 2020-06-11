@@ -9,23 +9,25 @@
 package ti.cameraview
 
 import android.app.Activity
+import android.net.http.SslCertificate.saveState
 import android.util.Log
+import org.appcelerator.kroll.KrollProxy
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
+import org.appcelerator.titanium.TiC
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.camera.CameraFeatures
 import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
-import ti.cameraview.helper.PermissionHandler
-
-import ti.cameraview.constant.Properties.TORCH_MODE
-import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.ASPECT_RATIO
-import ti.cameraview.constant.Properties.SCALE_TYPE
+import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
+import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.FOCUS_MODE
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
-import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
+import ti.cameraview.constant.Properties.SCALE_TYPE
+import ti.cameraview.constant.Properties.TORCH_MODE
+import ti.cameraview.helper.PermissionHandler
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
@@ -71,5 +73,11 @@ class CameraViewProxy : TiViewProxy() {
         } else {
             Log.d(CameraView.LCAT, "Camera permissions missing. Use Ti.Media.requestCameraPermissions to request required permissions")
         }
+    }
+
+    override fun onResume(activity: Activity?) {
+        // handle the torch state since the torch is turned off whenever the activity goes in pause state
+        (view as CameraView)?.handleTorch()
+        Log.d(LCAT, "** onResume")
     }
 }

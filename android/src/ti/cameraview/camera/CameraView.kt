@@ -82,8 +82,9 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
 
     init {
-        for (i in proxy.properties) {
-            Log.d(LCAT, "constructor :: ${i.key} + : ${i.value}")
+        // sanity check for `lifecycleContainer` property to control the activity lifecycle
+        if (!proxy.properties.containsKeyAndNotNull(TiC.PROPERTY_LIFECYCLE_CONTAINER)) {
+            Log.d(LCAT, "`lifecycleContainer` property missing, some features like `torch` may not work properly")
         }
 
         var arrangement = LayoutArrangement.DEFAULT
@@ -143,7 +144,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
 
     // {START} -> module-property handlers
-    private fun handleTorch() {
+    fun handleTorch() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             camera?.cameraControl?.enableTorch( Utils().getBoolean(TORCH_MODE) )
             Log.d(LCAT, "** handleTorch : ${Utils().getBoolean(TORCH_MODE)}")
