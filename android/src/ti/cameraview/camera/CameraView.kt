@@ -28,8 +28,14 @@ import org.appcelerator.titanium.view.TiCompositeLayout
 import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.constant.Defaults
+import ti.cameraview.constant.Defaults.ASPECT_RATIO_4_3
+import ti.cameraview.constant.Defaults.FLASH_MODE_AUTO
 import ti.cameraview.constant.Defaults.FOCUS_MODE_AUTO
 import ti.cameraview.constant.Defaults.FOCUS_MODE_TAP
+import ti.cameraview.constant.Defaults.RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP
+import ti.cameraview.constant.Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
+import ti.cameraview.constant.Defaults.SCALE_TYPE_FIT_CENTER
+import ti.cameraview.constant.Defaults.TORCH_MODE_OFF
 import ti.cameraview.constant.Properties.TORCH_MODE
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.ASPECT_RATIO
@@ -67,16 +73,28 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
 
     inner class Utils {
-        fun getBoolean(key: String): Boolean {
-            return TiConvert.toBoolean(proxy.getProperty(key))
+        fun getBoolean(key: String, defaultValue: Any): Boolean {
+            return if (proxy.hasPropertyAndNotNull(key)) {
+                TiConvert.toBoolean(proxy.getProperty(key))
+            } else {
+                TiConvert.toBoolean(defaultValue)
+            }
         }
 
-        fun getInt(key: String): Int {
-            return TiConvert.toInt(proxy.getProperty(key))
+        fun getInt(key: String, defaultValue: Any): Int {
+            return if (proxy.hasPropertyAndNotNull(key)) {
+                TiConvert.toInt(proxy.getProperty(key))
+            } else {
+                TiConvert.toInt(defaultValue)
+            }
         }
 
         fun getColor(key: String): Int {
-            return TiConvert.toColor(proxy.getProperty(key) as String?)
+            return if (proxy.hasPropertyAndNotNull(key)) {
+                TiConvert.toColor(proxy.getProperty(key) as String?)
+            } else {
+                TiConvert.toColor("white")
+            }
         }
     }
 
@@ -113,6 +131,10 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
+    override fun processProperties(d: KrollDict?) {
+        super.processProperties(d)
+    }
+
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
@@ -129,7 +151,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             ASPECT_RATIO -> handleAspectRatio()
             SCALE_TYPE -> handleScaleType()
             FOCUS_MODE -> {
-                when(Utils().getInt(FOCUS_MODE)) {
+                when(Utils().getInt(FOCUS_MODE, FOCUS_MODE_AUTO)) {
                     FOCUS_MODE_AUTO -> camera?.cameraControl?.cancelFocusAndMetering()
                     FOCUS_MODE_TAP -> startFocus(cameraView.width.toFloat()/2, cameraView.height.toFloat()/2)
                 }
@@ -156,15 +178,13 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     // {START} -> module-property handlers
     fun handleTorch() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
-            camera?.cameraControl?.enableTorch( Utils().getBoolean(TORCH_MODE) )
-            Log.d(LCAT, "** handleTorch : ${Utils().getBoolean(TORCH_MODE)}")
+            camera?.cameraControl?.enableTorch( Utils().getBoolean(TORCH_MODE, TORCH_MODE_OFF) )
         }
     }
 
     private fun handleFlash() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
-            imageCapture?.flashMode = Utils().getInt(FLASH_MODE)
-            Log.d(LCAT, "** handleFlash : ${Utils().getInt(FLASH_MODE)}")
+            imageCapture?.flashMode = Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO)
         }
     }
 
@@ -174,13 +194,12 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     }
 
     private fun handleScaleType() {
-        Log.d(LCAT, "** handleScaleType")
-        cameraView?.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE))
+        cameraView?.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE, SCALE_TYPE_FIT_CENTER))
     }
 
     // start focusing on the given co-ordinates in TAP_TO_FOCUS mode
     private fun startFocus(x: Float, y: Float) {
-        if (Utils().getInt(FOCUS_MODE) != FOCUS_MODE_TAP) {
+        if (Utils().getInt(FOCUS_MODE, FOCUS_MODE_AUTO) != FOCUS_MODE_TAP) {
             camera?.cameraControl?.cancelFocusAndMetering()
             return
         }
@@ -188,9 +207,9 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
         val meteringPoint = meteringFactory.createPoint(x, y)
 
-        val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS)) {
+        val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS, RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP)) {
             FocusMeteringAction.Builder(meteringPoint)
-                    .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME).toLong(), TimeUnit.SECONDS)
+                    .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME, RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP).toLong(), TimeUnit.SECONDS)
         } else {
             FocusMeteringAction.Builder(meteringPoint)
                     .disableAutoCancel()
@@ -238,14 +257,14 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                     cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
 
                     preview = Preview.Builder()
-                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO))
+                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
                             .build()
 
                     preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
 
                     imageCapture = ImageCapture.Builder()
-                            .setFlashMode(Utils().getInt(FLASH_MODE))
-                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO))
+                            .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
+                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
                             .build()
 
     //                // sets the image output dimensions ratio { DOES NOT WORK PROPERLY IN ASPECT RATIO 16_9 }
