@@ -12,7 +12,9 @@ import android.util.Log
 import org.appcelerator.kroll.KrollModule
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.titanium.TiApplication
+import ti.cameraview.camera.CameraUtils
 import ti.cameraview.constant.Defaults
+import ti.cameraview.constant.Properties
 
 @Kroll.module(name="ticameraview", id="ti.cameraview")
 class TicameraviewModule : KrollModule() {
@@ -44,9 +46,19 @@ class TicameraviewModule : KrollModule() {
 
 		@Kroll.constant const val FOCUS_MODE_AUTO = Defaults.FOCUS_MODE_AUTO
 		@Kroll.constant const val FOCUS_MODE_TAP = Defaults.FOCUS_MODE_TAP
+
+		@Kroll.constant const val CAMERA_TYPE_BACK = Defaults.CAMERA_TYPE_BACK
+		@Kroll.constant const val CAMERA_TYPE_FRONT = Defaults.CAMERA_TYPE_FRONT
+		@Kroll.constant const val CAMERA_TYPE_UNKNOWN = Defaults.CAMERA_TYPE_UNKNOWN
+		@Kroll.constant const val CAMERA_TYPE_EXTERNAL = Defaults.CAMERA_TYPE_EXTERNAL
 	}
 
 	override fun getApiName(): String? {
 		return "ti.cameraview"
+	}
+
+	@Kroll.method
+	fun getCameraList(): Array<Any> {
+		return CameraUtils.getCameraList().toArray()
 	}
 }

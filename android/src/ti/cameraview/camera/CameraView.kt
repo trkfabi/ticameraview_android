@@ -9,13 +9,11 @@ import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import android.view.MotionEvent
-import android.view.View
 import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import androidx.core.view.doOnLayout
 import androidx.lifecycle.LifecycleOwner
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollProxy
@@ -119,7 +117,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         // hold a reference to the proxy's root view to add camera-preview later
         rootView = TiCompositeLayout(ThisActivity, arrangement)
 
-        if (CameraFeatures.isCameraSupported() &&
+        if (CameraUtils.isCameraSupported() &&
                 PermissionHandler.hasCameraPermission() &&
                 PermissionHandler.hasStoragePermission()) {
             Log.d(LCAT, "****** creating camera-view 1…")

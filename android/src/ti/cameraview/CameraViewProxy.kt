@@ -9,15 +9,12 @@
 package ti.cameraview
 
 import android.app.Activity
-import android.net.http.SslCertificate.saveState
 import android.util.Log
-import org.appcelerator.kroll.KrollProxy
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
-import org.appcelerator.titanium.TiC
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
-import ti.cameraview.camera.CameraFeatures
+import ti.cameraview.camera.CameraUtils
 import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
 import ti.cameraview.constant.Properties.ASPECT_RATIO
@@ -63,7 +60,7 @@ class CameraViewProxy : TiViewProxy() {
 
     @Kroll.method
     public fun createCameraView() {
-        if (CameraFeatures.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
+        if (CameraUtils.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
             // create camera view if not ready yet
             (view as CameraView).apply {
                 if (!this.isCameraReady()) {

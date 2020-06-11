@@ -37,4 +37,9 @@ object Defaults {
     const val RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP = true
 
     const val RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP = 5    // in seconds
+
+    const val CAMERA_TYPE_BACK = "CAMERA_TYPE_BACK"
+    const val CAMERA_TYPE_FRONT = "CAMERA_TYPE_FRONT"
+    const val CAMERA_TYPE_UNKNOWN = "CAMERA_TYPE_UNKNOWN"
+    const val CAMERA_TYPE_EXTERNAL = "CAMERA_TYPE_EXTERNAL"
 }
