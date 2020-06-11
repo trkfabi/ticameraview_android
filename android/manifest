@@ -15,4 +15,4 @@ name: ticameraview
 moduleid: ti.cameraview
 guid: f6431d3b-5003-4c60-a721-39033526bea0
 platform: android
-minsdk: 9.0.2.GA
+minsdk: 9.0.0
