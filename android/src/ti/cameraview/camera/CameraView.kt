@@ -122,7 +122,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
         if (outerView == null) {
-            Log.d(LCAT, "view-container not created")
+            Log.d(LCAT, "camera-view container not created")
             return
         }
 
@@ -134,9 +134,9 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             ASPECT_RATIO -> handleAspectRatio()
             SCALE_TYPE -> handleScaleType()
             FOCUS_MODE -> {
-                // resets the focus-mode to continuous auto-focus
-                if (Utils().getInt(FOCUS_MODE) == FOCUS_MODE_AUTO) {
-                    camera?.cameraControl?.cancelFocusAndMetering()
+                when(Utils().getInt(FOCUS_MODE)) {
+                    FOCUS_MODE_AUTO -> camera?.cameraControl?.cancelFocusAndMetering()
+                    FOCUS_MODE_TAP -> startFocus(cameraView.width.toFloat()/2, cameraView.height.toFloat()/2)
                 }
             }
         }
@@ -168,37 +168,30 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         cameraView?.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE))
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun handleFocusMode() {
-        Log.d(LCAT, "** handleFocusMode called…")
-
-        cameraView.setOnTouchListener { _, event ->
-            Log.d(LCAT, "** setOnTouchListener called…")
-            // resets the focus-mode to tap-to-focus
-            if (event?.action == MotionEvent.ACTION_DOWN && Utils().getInt(FOCUS_MODE) == FOCUS_MODE_TAP) {
-                if (camera?.cameraControl != null) {
-                    Log.d(LCAT, "** setOnTouchListener : focusing on tap…")
-                    val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
-                    val meteringPoint = meteringFactory.createPoint(event.x, event.y)
-
-                    val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS)) {
-                        FocusMeteringAction.Builder(meteringPoint)
-                                .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME).toLong(), TimeUnit.SECONDS)
-                    } else {
-                        FocusMeteringAction.Builder(meteringPoint)
-                                .disableAutoCancel()
-                    }
-
-                    camera?.cameraControl?.startFocusAndMetering(action.build())
-                }
-            }
-
-            true
+    // start focusing on the given co-ordinates in TAP_TO_FOCUS mode
+    private fun startFocus(x: Float, y: Float) {
+        if (Utils().getInt(FOCUS_MODE) != FOCUS_MODE_TAP) {
+            camera?.cameraControl?.cancelFocusAndMetering()
+            return
         }
+
+        val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
+        val meteringPoint = meteringFactory.createPoint(x, y)
+
+        val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS)) {
+            FocusMeteringAction.Builder(meteringPoint)
+                    .setAutoCancelDuration( Utils().getInt(AUTO_FOCUS_RESUME_TIME).toLong(), TimeUnit.SECONDS)
+        } else {
+            FocusMeteringAction.Builder(meteringPoint)
+                    .disableAutoCancel()
+        }
+
+        camera?.cameraControl?.startFocusAndMetering(action.build())
     }
     // {END} -> module-property handlers
 
 
+    @SuppressLint("ClickableViewAccessibility")
     fun createCameraPreview(rebindView: Boolean = false) {
         if (!rebindView) {
             // make sure all existing child views are removed before adding the camera-view
@@ -211,7 +204,12 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             cameraView = PreviewView(ThisActivity)
             cameraView.setBackgroundColor(Utils().getColor(TiC.PROPERTY_BACKGROUND_COLOR))
             handleScaleType()
-            handleFocusMode()
+
+            // apply onTouch listener to listen for TAP_TO_FOCUS actions
+            cameraView.setOnTouchListener { _, event ->
+                if (event?.action == MotionEvent.ACTION_DOWN) startFocus(event.x, event.y)
+                true
+            }
 
             rootView.addView(cameraView, layoutParams)
             Log.d(LCAT, "****** camera-view created…")
