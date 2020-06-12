@@ -9,6 +9,7 @@
 package ti.cameraview
 
 import android.util.Log
+import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollModule
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.titanium.TiApplication
@@ -21,10 +22,21 @@ class TicameraviewModule : KrollModule() {
     companion object {
 		const val LCAT = "ti.cameraview"
 
+		@JvmStatic var cameraList: ArrayList<KrollDict> = arrayListOf<KrollDict>()
+
 		@JvmStatic
 		@Kroll.onAppCreate
 		fun onAppCreate(app: TiApplication) {
 			Log.d(LCAT, "onAppCreate")
+		}
+
+		@JvmStatic
+		fun retrieveCameraList(): ArrayList<KrollDict> {
+			if (cameraList.size == 0) {
+				cameraList = CameraUtils.getCameraList()
+			}
+
+			return cameraList
 		}
 
 		@Kroll.constant const val TORCH_MODE_OFF = Defaults.TORCH_MODE_OFF
@@ -53,12 +65,16 @@ class TicameraviewModule : KrollModule() {
 		@Kroll.constant const val CAMERA_TYPE_EXTERNAL = Defaults.CAMERA_TYPE_EXTERNAL
 	}
 
+	init {
+		// application instance is available now
+	}
+
 	override fun getApiName(): String? {
 		return "ti.cameraview"
 	}
 
-	@Kroll.method
+	@Kroll.getProperty
 	fun getCameraList(): Array<Any> {
-		return CameraUtils.getCameraList().toArray()
+		return retrieveCameraList().toArray()
 	}
 }
