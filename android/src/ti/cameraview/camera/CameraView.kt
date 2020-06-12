@@ -34,6 +34,7 @@ import ti.cameraview.constant.Defaults.RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP
 import ti.cameraview.constant.Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
 import ti.cameraview.constant.Defaults.SCALE_TYPE_FIT_CENTER
 import ti.cameraview.constant.Defaults.TORCH_MODE_OFF
+import ti.cameraview.constant.Events
 import ti.cameraview.constant.Properties.TORCH_MODE
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.ASPECT_RATIO
@@ -181,6 +182,10 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         return this::cameraView.isInitialized
     }
 
+    // check whether the camera has flash - could be front/back
+    fun hasFlash(): Boolean {
+        return camera?.cameraInfo?.hasFlashUnit() ?: false
+    }
 
     // {START} -> module-property handlers
     fun handleTorch() {
@@ -243,9 +248,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             }
 
             rootView.addView(cameraView, layoutParams)
-            Log.d(LCAT, "****** camera-view created…")
-        } else {
-            Log.d(LCAT, "****** camera-view already added…")
         }
 
         ProcessCameraProvider.getInstance(ThisActivity).apply {
@@ -262,28 +264,40 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                             .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
                             .build()
 
-                    preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
+                    if (preview != null) {
+                        preview!!.setSurfaceProvider(cameraView.createSurfaceProvider())
 
-                    imageCapture = ImageCapture.Builder()
-                            .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
-                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
-                            .build()
+                        imageCapture = ImageCapture.Builder()
+                                .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
+                                .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
+                                .build()
 
-                    camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
+                        if (imageCapture != null) {
+                            camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
+                            handleTorch()
 
-                    handleTorch()
+                            if (camera != null) {
+                                Events.fireCameraReadyEvent(proxy, true)
+                            } else {
+                                Events.fireCameraReadyEvent(proxy, false, "error_camera_lifecycle")
+                            }
+                        } else {
+                            Events.fireCameraReadyEvent(proxy, false, "error_image_capture")
+                        }
+                    } else {
+                        Events.fireCameraReadyEvent(proxy, false, "error_preview")
+                    }
 
                 } catch(exc: Exception) {
                     Log.e(LCAT, "Use case binding failed", exc)
+                    Events.fireCameraReadyEvent(proxy, false, null, exc.localizedMessage)
                 }
 
             }, MainExecutor)
         }
-
-        Log.d(LCAT, "****** startCamera…")
     }
 
-    private fun takePhoto() {
+    private fun saveImageAsFile() {
         // Get a stable reference of the modifiable image capture use case
         val imageCapture = imageCapture ?: return
 
@@ -336,20 +350,5 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         val bytes = ByteArray(buffer.capacity())
         buffer.get(bytes)
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, null)
-    }
-
-    private fun getFile(isPublic: Boolean): File? {
-        var file: File? = null
-        val fileType = Environment.DIRECTORY_PICTURES
-        val dir = if (isPublic) Environment.getExternalStoragePublicDirectory(fileType) else TiApplication.getInstance().getExternalFilesDir(fileType)
-        val appDir = File(dir, TiApplication.getInstance().appInfo.name);
-
-        if (!appDir.exists() && !appDir.mkdirs()) {
-            Log.e("TiMedia", "Failed to create external storage directory.");
-        } else {
-            file = TiFileHelper.getInstance().getTempFile(appDir, Defaults.IMAGE_EXTENSION, !isPublic);
-        }
-
-        return file;
     }
 }

@@ -18,71 +18,13 @@ import ti.cameraview.constant.Defaults
 import ti.modules.titanium.filesystem.FileProxy
 
 object ResourceUtils {
-    @JvmField val CONTEXT: Context = TiApplication.getInstance().applicationContext
+    @JvmField val CONTEXT: Context? = TiApplication.getInstance().applicationContext
 
-    fun convertDpToPx(dp: Float): Float {
-        return dp * CONTEXT.resources?.displayMetrics?.density!!
-    }
-
-    fun convertPxToDp(px: Float): Float {
-        return px / CONTEXT.resources?.displayMetrics?.density!!
-    }
-
-    fun getR(path: String?): Int {
+    @JvmStatic fun getString(key: String): String {
         return try {
-            TiRHelper.getResource(path)
+            CONTEXT?.resources?.getString(TiRHelper.getResource("string.$key")) ?: ""
         } catch (exc: Exception) {
-            -1
-        }
-    }
-
-    fun getObjectOption(options: KrollDict, key: String): Any? {
-        return if (options.containsKeyAndNotNull(key)) options[key] else null
-    }
-
-    fun getStringOption(options: KrollDict, key: String): String? {
-        if (options.containsKeyAndNotNull(key)) {
-            return TiConvert.toString(options[key], "").trim()
-        }
-
-        return null
-    }
-
-    fun getIntOption(options: KrollDict, key: String): Int? {
-        if (options.containsKeyAndNotNull(key)) {
-            return TiConvert.toInt(options[key], -1)
-        }
-
-        return null
-    }
-
-    fun getBoolOption(options: KrollDict, key: String): Boolean? {
-        if (options.containsKeyAndNotNull(key)) {
-            return TiConvert.toBoolean(options[key], false)
-        }
-
-        return null
-    }
-
-    fun getBoolOption(options: KrollDict, key: String, defaultValue: Boolean): Boolean {
-        if (options.containsKeyAndNotNull(key)) {
-            return TiConvert.toBoolean(options[key], defaultValue)
-        }
-
-        return defaultValue
-    }
-
-    fun getArrayOption(options: KrollDict, key: String?): Array<String>? {
-        return if (options.containsKeyAndNotNull(key)) options.getStringArray(key) else null
-    }
-
-    fun getResValueAsInt(intResName: String): Int {
-        val resId = getR("dimen.$intResName")
-        return if (resId == -1) {
-            0
-        } else {
-            val context = TiApplication.getInstance().applicationContext
-            context.resources.getInteger(resId)
+            key
         }
     }
 
