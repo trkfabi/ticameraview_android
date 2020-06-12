@@ -57,8 +57,6 @@ class TicameraviewModule : KrollModule() {
 
 		@Kroll.constant const val CAMERA_TYPE_BACK = Defaults.CAMERA_TYPE_BACK
 		@Kroll.constant const val CAMERA_TYPE_FRONT = Defaults.CAMERA_TYPE_FRONT
-		@Kroll.constant const val CAMERA_TYPE_UNKNOWN = Defaults.CAMERA_TYPE_UNKNOWN
-		@Kroll.constant const val CAMERA_TYPE_EXTERNAL = Defaults.CAMERA_TYPE_EXTERNAL
 	}
 
 	init {
