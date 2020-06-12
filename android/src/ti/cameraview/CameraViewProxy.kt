@@ -62,8 +62,14 @@ class CameraViewProxy : TiViewProxy() {
         return view
     }
 
+    override fun onResume(activity: Activity?) {
+        // handle the torch state since the torch is turned off whenever the activity goes in pause state
+        (view as CameraView)?.handleTorch()
+        Log.d(LCAT, "** onResume")
+    }
+
     @Kroll.method
-    public fun createCameraView() {
+    fun createCameraView() {
         if (CameraUtils.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
             // create camera view if not ready yet
             (view as CameraView).apply {
@@ -76,9 +82,8 @@ class CameraViewProxy : TiViewProxy() {
         }
     }
 
-    override fun onResume(activity: Activity?) {
-        // handle the torch state since the torch is turned off whenever the activity goes in pause state
-        (view as CameraView)?.handleTorch()
-        Log.d(LCAT, "** onResume")
+    @Kroll.method
+    fun hasFlash(): Boolean {
+        return (view as CameraView).hasFlash()
     }
 }
