@@ -12,6 +12,7 @@ import android.app.Activity
 import android.util.Log
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
+import org.appcelerator.titanium.TiApplication
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.camera.CameraUtils
@@ -19,6 +20,7 @@ import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
 import ti.cameraview.constant.Properties.ASPECT_RATIO
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
+import ti.cameraview.constant.Properties.CAMERA_ID
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.FOCUS_MODE
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
@@ -28,6 +30,7 @@ import ti.cameraview.helper.PermissionHandler
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
+    CAMERA_ID,
     TORCH_MODE,
     FLASH_MODE,
     ASPECT_RATIO,
@@ -42,6 +45,7 @@ class CameraViewProxy : TiViewProxy() {
     }
 
     init {
+        defaultValues[CAMERA_ID] = CameraUtils.getDefaultCameraId()
         defaultValues[TORCH_MODE] = Defaults.TORCH_MODE_OFF
         defaultValues[FLASH_MODE] = Defaults.FLASH_MODE_AUTO
         defaultValues[ASPECT_RATIO] = Defaults.ASPECT_RATIO_4_3

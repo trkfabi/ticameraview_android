@@ -6,24 +6,24 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.Camera as OldCamera
 import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraCharacteristics.LENS_FACING_BACK as CC_LB
+import android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT as CC_LF
 import android.hardware.camera2.CameraManager
+import androidx.camera.core.CameraSelector.LENS_FACING_BACK as CS_LB
+import androidx.camera.core.CameraSelector.LENS_FACING_FRONT as CS_LF
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.camera.core.CameraSelector
 import org.appcelerator.kroll.KrollDict
-import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.titanium.TiApplication
 import ti.cameraview.TicameraviewModule
-import ti.cameraview.constant.Defaults
 import ti.cameraview.constant.Defaults.CAMERA_TYPE_UNKNOWN
 import ti.cameraview.constant.Defaults.CAMERA_TYPE_BACK
 import ti.cameraview.constant.Defaults.CAMERA_TYPE_FRONT
 import ti.cameraview.constant.Defaults.CAMERA_TYPE_EXTERNAL
-import ti.cameraview.constant.Methods
-import ti.cameraview.constant.Methods.CameraList.CAMERA_FOCAL_LENGTHS
 import ti.cameraview.constant.Methods.CameraList.CAMERA_ID
 import ti.cameraview.constant.Methods.CameraList.CAMERA_TYPE
-import ti.cameraview.constant.Methods.CameraList.CAMERA_WIDEST_FOCAL_LENGTH
 import ti.cameraview.helper.ResourceUtils
 import java.util.Comparator
 import kotlin.collections.ArrayList
@@ -45,12 +45,61 @@ object CameraUtils {
         val cameraDict = KrollDict()
         cameraDict[CAMERA_ID] = cameraId
         cameraDict[CAMERA_TYPE] = cameraType
-        cameraDict[CAMERA_FOCAL_LENGTHS] = focalLength?.toTypedArray() ?: arrayOf(0.0f)
 
-        // minimum focal-length value will be the widest angle focal-length
-        cameraDict[CAMERA_WIDEST_FOCAL_LENGTH] = focalLength?.min() ?: 0.0f
+        // TODO enable the below codes when wide-angle camera support is available in CameraX
+        // cameraDict[CAMERA_FOCAL_LENGTHS] = focalLength?.toTypedArray() ?: arrayOf(0.0f)
+        // cameraDict[CAMERA_WIDEST_FOCAL_LENGTH] = focalLength?.min() ?: 0.0f
 
         list.add(cameraDict)
+    }
+
+    // TODO enable the below codes when wide-angle camera support is available in CameraX
+    private fun getWideAngleCameraList() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val context = TiApplication.getInstance().rootOrCurrentActivity
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+
+            for (cameraId in cameraManager.cameraIdList) {
+                val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+                var cameraType = CAMERA_TYPE_UNKNOWN;
+
+                val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
+
+                if (facing == CameraCharacteristics.LENS_FACING_BACK) {
+                    cameraType = CAMERA_TYPE_BACK
+                } else if (facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                    cameraType = CAMERA_TYPE_FRONT
+                } else if (facing == CameraCharacteristics.LENS_FACING_EXTERNAL) {
+                    cameraType = CAMERA_TYPE_EXTERNAL
+                }
+
+                val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun addCameraOnAboveLollipop(cameraManager: CameraManager, cameraList: ArrayList<KrollDict>, lensFacingType: Int, lensFacing: Int, cameraType: String) {
+        for (cameraId in cameraManager.cameraIdList) {
+            val characteristics = cameraManager.getCameraCharacteristics(cameraId)
+            val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
+
+            if (facing == lensFacingType) {
+                addCameraListItem(cameraList, lensFacing, cameraType)
+                break
+            }
+        }
+    }
+
+    private fun addCameraBelowLollipop(cameraList: ArrayList<KrollDict>, totalCameras: Int, cameraFacing: Int, cameraType: String) {
+        for (i in 0 until totalCameras) {
+            var cameraInfo = OldCamera.CameraInfo();
+            OldCamera.getCameraInfo(i, cameraInfo);
+
+            if (cameraInfo.facing == cameraFacing) {
+                addCameraListItem(cameraList, i, cameraType)
+            }
+        }
     }
 
     @JvmStatic fun isCameraSupported(): Boolean {
@@ -65,36 +114,19 @@ object CameraUtils {
                 val context = TiApplication.getInstance().rootOrCurrentActivity
                 val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
-                for (cameraId in cameraManager.cameraIdList) {
-                    val characteristics = cameraManager.getCameraCharacteristics(cameraId)
-                    var cameraType = CAMERA_TYPE_UNKNOWN;
+                // add another 1 front-camera if available
+                addCameraOnAboveLollipop(cameraManager, cameraList, CC_LF, CS_LF, CAMERA_TYPE_FRONT)
 
-                    val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
-
-                    if (facing == CameraCharacteristics.LENS_FACING_BACK) {
-                        cameraType = CAMERA_TYPE_BACK
-                    } else if (facing == CameraCharacteristics.LENS_FACING_FRONT) {
-                        cameraType = CAMERA_TYPE_FRONT
-                    } else if (facing == CameraCharacteristics.LENS_FACING_EXTERNAL) {
-                        cameraType = CAMERA_TYPE_EXTERNAL
-                    }
-
-                    val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
-                    addCameraListItem(cameraList, cameraId.toInt(), cameraType, focalLengths)
-                }
+                // add another 1 back-camera if available
+                addCameraOnAboveLollipop(cameraManager, cameraList, CC_LB, CS_LB, CAMERA_TYPE_BACK)
             } else {
                 val totalCameras = OldCamera.getNumberOfCameras()
 
-                for (i in 0 until totalCameras) {
-                    var cameraInfo = OldCamera.CameraInfo();
-                    OldCamera.getCameraInfo(i, cameraInfo);
+                // add another 1 front-camera if available
+                addCameraBelowLollipop(cameraList, totalCameras, OldCamera.CameraInfo.CAMERA_FACING_FRONT, CAMERA_TYPE_FRONT)
 
-                    if (cameraInfo.facing == OldCamera.CameraInfo.CAMERA_FACING_FRONT) {
-                        addCameraListItem(cameraList, i, CAMERA_TYPE_FRONT)
-                    } else if (cameraInfo.facing == OldCamera.CameraInfo.CAMERA_FACING_BACK) {
-                        addCameraListItem(cameraList, i, CAMERA_TYPE_BACK)
-                    }
-                }
+                // add another 1 back-camera if available
+                addCameraBelowLollipop(cameraList, totalCameras, OldCamera.CameraInfo.CAMERA_FACING_BACK, CAMERA_TYPE_BACK)
             }
         } catch (exc: Exception) {
             Log.d(LCAT, "** Error in retrieving camera list: $exc")
@@ -111,18 +143,26 @@ object CameraUtils {
         val cameraList = TicameraviewModule.retrieveCameraList()
 
         // return default back-camera
-        if (cameraList.size == 0) {
+        if (cameraList.isEmpty()) {
             return CameraSelector.LENS_FACING_BACK
         }
 
         // filter list by back-camera
         val backCameraList = cameraList.filter { it[CAMERA_TYPE] ==  CAMERA_TYPE_BACK}
 
-        // sort list by back-camera minimum focal lengths
-        val sortedBackCameraList = backCameraList.sortedWith(CameraPropertyComparator())
+        // return default back-camera
+        if (backCameraList.isEmpty()) {
+            return CameraSelector.LENS_FACING_BACK
+        }
 
-        // first item will have the widest focal-length
-        return sortedBackCameraList[0][CAMERA_ID] as Int
+        // TODO enable the below codes when wide-angle camera support is available in CameraX
+        // sort list by back-camera minimum focal lengths, first item will have the widest focal-length
+        // val sortedBackCameraList = backCameraList.sortedWith(CameraPropertyComparator())
+
+         val defaultCameraId = backCameraList[0][CAMERA_ID]
+         Log.d(LCAT, "** getDefaultCameraId: ${defaultCameraId.toString().toInt()}")
+
+        return defaultCameraId.toString().toInt()
     }
 
 }

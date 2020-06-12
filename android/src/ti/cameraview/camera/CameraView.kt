@@ -41,6 +41,7 @@ import ti.cameraview.constant.Properties.SCALE_TYPE
 import ti.cameraview.constant.Properties.FOCUS_MODE
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
+import ti.cameraview.constant.Properties.CAMERA_ID
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
 import java.io.File
@@ -80,10 +81,12 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         }
 
         fun getInt(key: String, defaultValue: Any): Int {
-            return if (proxy.hasPropertyAndNotNull(key)) {
-                TiConvert.toInt(proxy.getProperty(key))
+            if (proxy.hasPropertyAndNotNull(key)) {
+                val a = TiConvert.toInt(proxy.getProperty(key))
+                Log.d(LCAT, "** int : $key = $a")
+                return a
             } else {
-                TiConvert.toInt(defaultValue)
+                return TiConvert.toInt(defaultValue)
             }
         }
 
@@ -143,10 +146,16 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
         Log.d(LCAT, "propertyChanged : $key : from ${oldValue ?: "null"} to $newValue")
 
+        // check if the property has been really changed to avoid rebinding camera-view and execute other features
+        if (oldValue == newValue) {
+            Log.d(LCAT, "propertyChanged : did not changed")
+            return
+        }
+
         when(key) {
+            ASPECT_RATIO, CAMERA_ID -> createCameraPreview(true)
             TORCH_MODE -> handleTorch()
             FLASH_MODE -> handleFlash()
-            ASPECT_RATIO -> handleAspectRatio()
             SCALE_TYPE -> handleScaleType()
             FOCUS_MODE -> {
                 when(Utils().getInt(FOCUS_MODE, FOCUS_MODE_AUTO)) {
@@ -184,11 +193,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             imageCapture?.flashMode = Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO)
         }
-    }
-
-    private fun handleAspectRatio() {
-        Log.d(LCAT, "** handleAspectRatio")
-        createCameraPreview(rebindView = true)
     }
 
     private fun handleScaleType() {
@@ -252,7 +256,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                     // Unbind use cases before rebinding
                     cameraProvider.unbindAll()
 
-                    cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
+                    cameraSelector = CameraSelector.Builder().requireLensFacing(Utils().getInt(CAMERA_ID, CameraSelector.LENS_FACING_BACK)).build()
 
                     preview = Preview.Builder()
                             .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
@@ -264,11 +268,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                             .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
                             .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
                             .build()
-
-    //                // sets the image output dimensions ratio { DOES NOT WORK PROPERLY IN ASPECT RATIO 16_9 }
-    //                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-    //                    imageCapture?.setCropAspectRatio(Rational(1, 1))
-    //                }
 
                     camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
 
