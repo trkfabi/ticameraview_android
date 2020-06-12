@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_camera_lifecycle">camera could not bind to lifecycle</string>
+    <string name="error_image_capture">imageCapture builder failed</string>
+    <string name="error_preview">preview not available</string>
+    <string name="error_image_callback">OnImageCapturedCallback error</string>
+    <string name="error_image_proxy_image">image proxy\'s image is null</string>
+    <string name="error_bitmap">could not generate image bitmap</string>
+</resources>
