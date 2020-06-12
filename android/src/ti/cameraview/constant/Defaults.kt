@@ -8,12 +8,8 @@ package ti.cameraview.constant
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.TorchState
-import androidx.camera.view.PreviewView
-import org.appcelerator.kroll.annotations.Kroll
 
 object Defaults {
-    const val IMAGE_EXTENSION = ".jpg"
-
     const val TORCH_MODE_OFF = TorchState.OFF
     const val TORCH_MODE_ON = TorchState.ON
 
@@ -36,6 +32,7 @@ object Defaults {
 
     const val CAMERA_TYPE_BACK = "CAMERA_TYPE_BACK"
     const val CAMERA_TYPE_FRONT = "CAMERA_TYPE_FRONT"
-    const val CAMERA_TYPE_UNKNOWN = "CAMERA_TYPE_UNKNOWN"
-    const val CAMERA_TYPE_EXTERNAL = "CAMERA_TYPE_EXTERNAL"
+
+    const val IMAGE_QUALITY_NORMAL = ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+    const val IMAGE_QUALITY_HIGH = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
 }

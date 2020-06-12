@@ -9,7 +9,7 @@ class PermissionHandler {
         @JvmStatic
         fun hasStoragePermission(): Boolean {
             if (Build.VERSION.SDK_INT >= 23) {
-                return ResourceUtils.CONTEXT.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+                return ResourceUtils.getContext().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             }
             return true
         }
@@ -17,7 +17,7 @@ class PermissionHandler {
         @JvmStatic
         fun hasCameraPermission(): Boolean {
             if (Build.VERSION.SDK_INT >= 23) {
-                return ResourceUtils.CONTEXT.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                return ResourceUtils.getContext().checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
             }
             return true
         }
