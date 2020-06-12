@@ -104,12 +104,8 @@ object ResourceUtils {
 
     @JvmStatic fun getScaleType(scaleType: Int): PreviewView.ScaleType {
         return when(scaleType) {
-            Defaults.SCALE_TYPE_FILL_START -> PreviewView.ScaleType.FILL_START
             Defaults.SCALE_TYPE_FILL_CENTER -> PreviewView.ScaleType.FILL_CENTER
-            Defaults.SCALE_TYPE_FILL_END -> PreviewView.ScaleType.FILL_END
-            Defaults.SCALE_TYPE_FIT_START -> PreviewView.ScaleType.FIT_START
             Defaults.SCALE_TYPE_FIT_CENTER -> PreviewView.ScaleType.FIT_CENTER
-            Defaults.SCALE_TYPE_FIT_END -> PreviewView.ScaleType.FIT_END
             else -> PreviewView.ScaleType.FILL_CENTER
         }
     }

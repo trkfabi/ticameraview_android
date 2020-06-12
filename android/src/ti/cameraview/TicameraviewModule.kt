@@ -50,11 +50,7 @@ class TicameraviewModule : KrollModule() {
 		@Kroll.constant const val FLASH_MODE_OFF = Defaults.FLASH_MODE_OFF
 
 		@Kroll.constant const val SCALE_TYPE_FIT_CENTER = Defaults.SCALE_TYPE_FIT_CENTER
-		@Kroll.constant const val SCALE_TYPE_FILL_START = Defaults.SCALE_TYPE_FILL_START
 		@Kroll.constant const val SCALE_TYPE_FILL_CENTER = Defaults.SCALE_TYPE_FILL_CENTER
-		@Kroll.constant const val SCALE_TYPE_FILL_END = Defaults.SCALE_TYPE_FILL_END
-		@Kroll.constant const val SCALE_TYPE_FIT_START = Defaults.SCALE_TYPE_FIT_START
-		@Kroll.constant const val SCALE_TYPE_FIT_END = Defaults.SCALE_TYPE_FIT_END
 
 		@Kroll.constant const val FOCUS_MODE_AUTO = Defaults.FOCUS_MODE_AUTO
 		@Kroll.constant const val FOCUS_MODE_TAP = Defaults.FOCUS_MODE_TAP

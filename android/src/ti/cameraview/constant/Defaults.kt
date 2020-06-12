@@ -25,11 +25,7 @@ object Defaults {
     const val FLASH_MODE_OFF = ImageCapture.FLASH_MODE_OFF
 
     const val SCALE_TYPE_FIT_CENTER = 4     // PreviewView.ScaleType.FIT_CENTER
-    const val SCALE_TYPE_FILL_START = 0     // PreviewView.ScaleType.FILL_START
     const val SCALE_TYPE_FILL_CENTER = 1    // PreviewView.ScaleType.FILL_CENTER
-    const val SCALE_TYPE_FILL_END = 2       // PreviewView.ScaleType.FILL_END
-    const val SCALE_TYPE_FIT_START = 3      // PreviewView.ScaleType.FIT_START
-    const val SCALE_TYPE_FIT_END = 5        // PreviewView.ScaleType.FIT_END
 
     const val FOCUS_MODE_AUTO = 0           // auto-focus
     const val FOCUS_MODE_TAP = 1            // tap-to-focus
