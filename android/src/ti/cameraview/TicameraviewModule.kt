@@ -8,27 +8,18 @@
  */
 package ti.cameraview
 
-import android.util.Log
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollModule
 import org.appcelerator.kroll.annotations.Kroll
-import org.appcelerator.titanium.TiApplication
 import ti.cameraview.camera.CameraUtils
 import ti.cameraview.constant.Defaults
-import ti.cameraview.constant.Properties
 
 @Kroll.module(name="ticameraview", id="ti.cameraview")
 class TicameraviewModule : KrollModule() {
     companion object {
 		const val LCAT = "ti.cameraview"
 
-		@JvmStatic var cameraList: ArrayList<KrollDict> = arrayListOf<KrollDict>()
-
-		@JvmStatic
-		@Kroll.onAppCreate
-		fun onAppCreate(app: TiApplication) {
-			Log.d(LCAT, "onAppCreate")
-		}
+		@JvmStatic var cameraList: ArrayList<KrollDict> = arrayListOf()
 
 		@JvmStatic
 		fun retrieveCameraList(): ArrayList<KrollDict> {
@@ -57,10 +48,9 @@ class TicameraviewModule : KrollModule() {
 
 		@Kroll.constant const val CAMERA_TYPE_BACK = Defaults.CAMERA_TYPE_BACK
 		@Kroll.constant const val CAMERA_TYPE_FRONT = Defaults.CAMERA_TYPE_FRONT
-	}
 
-	init {
-		// application instance is available now
+		@Kroll.constant const val IMAGE_QUALITY_NORMAL = Defaults.IMAGE_QUALITY_NORMAL
+		@Kroll.constant const val IMAGE_QUALITY_HIGH = Defaults.IMAGE_QUALITY_HIGH
 	}
 
 	override fun getApiName(): String? {

@@ -6,23 +6,28 @@
  * Please see the LICENSE included with this distribution for details.
  *
  */
+@file:Suppress("unused")
+
 package ti.cameraview
 
 import android.app.Activity
 import android.util.Log
+import org.appcelerator.kroll.KrollDict
+import org.appcelerator.kroll.KrollFunction
 import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
-import org.appcelerator.titanium.TiApplication
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.camera.CameraUtils
 import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
+import ti.cameraview.constant.Methods
 import ti.cameraview.constant.Properties.ASPECT_RATIO
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 import ti.cameraview.constant.Properties.CAMERA_ID
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.FOCUS_MODE
+import ti.cameraview.constant.Properties.IMAGE_QUALITY
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.SCALE_TYPE
 import ti.cameraview.constant.Properties.TORCH_MODE
@@ -36,14 +41,11 @@ import ti.cameraview.helper.PermissionHandler
     ASPECT_RATIO,
     SCALE_TYPE,
     FOCUS_MODE,
+    IMAGE_QUALITY,
     RESUME_AUTO_FOCUS,
     AUTO_FOCUS_RESUME_TIME
 ])
 class CameraViewProxy : TiViewProxy() {
-    companion object {
-        const val LCAT = "CameraViewProxy"
-    }
-
     init {
         defaultValues[CAMERA_ID] = CameraUtils.getDefaultCameraId()
         defaultValues[TORCH_MODE] = Defaults.TORCH_MODE_OFF
@@ -51,6 +53,7 @@ class CameraViewProxy : TiViewProxy() {
         defaultValues[ASPECT_RATIO] = Defaults.ASPECT_RATIO_4_3
         defaultValues[SCALE_TYPE] = Defaults.SCALE_TYPE_FIT_CENTER
         defaultValues[FOCUS_MODE] = Defaults.FOCUS_MODE_AUTO
+        defaultValues[IMAGE_QUALITY] = Defaults.IMAGE_QUALITY_NORMAL
         defaultValues[RESUME_AUTO_FOCUS] = Defaults.RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP
         defaultValues[AUTO_FOCUS_RESUME_TIME] = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
     }
@@ -64,15 +67,18 @@ class CameraViewProxy : TiViewProxy() {
 
     override fun onResume(activity: Activity?) {
         // handle the torch state since the torch is turned off whenever the activity goes in pause state
-        (view as CameraView)?.handleTorch()
-        Log.d(LCAT, "** onResume")
+        getCameraView().handleTorch()
+    }
+
+    private fun getCameraView(): CameraView {
+        return view as CameraView
     }
 
     @Kroll.method
     fun createCameraView() {
         if (CameraUtils.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
             // create camera view if not ready yet
-            (view as CameraView).apply {
+            getCameraView().apply {
                 if (!this.isCameraReady()) {
                     this.createCameraPreview()
                 }
@@ -84,6 +90,21 @@ class CameraViewProxy : TiViewProxy() {
 
     @Kroll.method
     fun hasFlash(): Boolean {
-        return (view as CameraView).hasFlash()
+        return getCameraView().isCameraReady() && getCameraView().hasFlash()
+    }
+
+    @Kroll.method
+    fun capturePhoto(dict: KrollDict?) {
+        if (dict == null) return
+
+        if (! getCameraView().isCameraReady() ) return
+
+        if (dict.containsKeyAndNotNull(Methods.CapturePhoto.PROPERTY_CALLBACK)) {
+            val callback = dict[Methods.CapturePhoto.PROPERTY_CALLBACK]
+
+            if (callback is KrollFunction) {
+                getCameraView().saveImageAsBitmap(callback)
+            }
+        }
     }
 }

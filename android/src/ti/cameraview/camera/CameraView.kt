@@ -2,52 +2,45 @@ package ti.cameraview.camera
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.Image
-import android.net.Uri
-import android.os.Environment
 import android.util.Log
 import android.view.MotionEvent
-import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import org.appcelerator.kroll.KrollDict
+import org.appcelerator.kroll.KrollFunction
 import org.appcelerator.kroll.KrollProxy
-import org.appcelerator.titanium.TiApplication
 import org.appcelerator.titanium.TiC
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.util.TiConvert
-import org.appcelerator.titanium.util.TiFileHelper
 import org.appcelerator.titanium.view.TiCompositeLayout
 import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement
 import org.appcelerator.titanium.view.TiUIView
-import ti.cameraview.constant.Defaults
 import ti.cameraview.constant.Defaults.ASPECT_RATIO_4_3
 import ti.cameraview.constant.Defaults.FLASH_MODE_AUTO
 import ti.cameraview.constant.Defaults.FOCUS_MODE_AUTO
 import ti.cameraview.constant.Defaults.FOCUS_MODE_TAP
+import ti.cameraview.constant.Defaults.IMAGE_QUALITY_NORMAL
 import ti.cameraview.constant.Defaults.RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP
 import ti.cameraview.constant.Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
 import ti.cameraview.constant.Defaults.SCALE_TYPE_FIT_CENTER
 import ti.cameraview.constant.Defaults.TORCH_MODE_OFF
 import ti.cameraview.constant.Events
-import ti.cameraview.constant.Properties.TORCH_MODE
-import ti.cameraview.constant.Properties.FLASH_MODE
+import ti.cameraview.constant.Methods
 import ti.cameraview.constant.Properties.ASPECT_RATIO
-import ti.cameraview.constant.Properties.SCALE_TYPE
-import ti.cameraview.constant.Properties.FOCUS_MODE
-import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 import ti.cameraview.constant.Properties.CAMERA_ID
+import ti.cameraview.constant.Properties.FLASH_MODE
+import ti.cameraview.constant.Properties.FOCUS_MODE
+import ti.cameraview.constant.Properties.IMAGE_QUALITY
+import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
+import ti.cameraview.constant.Properties.SCALE_TYPE
+import ti.cameraview.constant.Properties.TORCH_MODE
+import ti.cameraview.helper.FileHandler.generateBitmap
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -84,7 +77,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         fun getInt(key: String, defaultValue: Any): Int {
             if (proxy.hasPropertyAndNotNull(key)) {
                 val a = TiConvert.toInt(proxy.getProperty(key))
-                Log.d(LCAT, "** int : $key = $a")
                 return a
             } else {
                 return TiConvert.toInt(defaultValue)
@@ -124,7 +116,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         if (CameraUtils.isCameraSupported() &&
                 PermissionHandler.hasCameraPermission() &&
                 PermissionHandler.hasStoragePermission()) {
-            Log.d(LCAT, "****** creating camera-view 1…")
             createCameraPreview()
         }
 
@@ -141,20 +132,16 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
         if (outerView == null) {
-            Log.d(LCAT, "camera-view container not created")
             return
         }
 
-        Log.d(LCAT, "propertyChanged : $key : from ${oldValue ?: "null"} to $newValue")
-
         // check if the property has been really changed to avoid rebinding camera-view and execute other features
         if (oldValue == newValue) {
-            Log.d(LCAT, "propertyChanged : did not changed")
             return
         }
 
         when(key) {
-            ASPECT_RATIO, CAMERA_ID -> createCameraPreview(true)
+            ASPECT_RATIO, CAMERA_ID, IMAGE_QUALITY -> createCameraPreview(true)
             TORCH_MODE -> handleTorch()
             FLASH_MODE -> handleFlash()
             SCALE_TYPE -> handleScaleType()
@@ -201,7 +188,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     }
 
     private fun handleScaleType() {
-        cameraView?.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE, SCALE_TYPE_FIT_CENTER))
+        cameraView.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE, SCALE_TYPE_FIT_CENTER))
     }
 
     // start focusing on the given co-ordinates in TAP_TO_FOCUS mode
@@ -268,6 +255,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                         preview!!.setSurfaceProvider(cameraView.createSurfaceProvider())
 
                         imageCapture = ImageCapture.Builder()
+                                .setCaptureMode(Utils().getInt(IMAGE_QUALITY, IMAGE_QUALITY_NORMAL))
                                 .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
                                 .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
                                 .build()
@@ -290,65 +278,43 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                 } catch(exc: Exception) {
                     Log.e(LCAT, "Use case binding failed", exc)
-                    Events.fireCameraReadyEvent(proxy, false, null, exc.localizedMessage)
+                    Events.fireCameraReadyEvent(proxy, false, null, exc.toString())
                 }
 
             }, MainExecutor)
         }
     }
 
-    private fun saveImageAsFile() {
-        // Get a stable reference of the modifiable image capture use case
-        val imageCapture = imageCapture ?: return
+    fun saveImageAsBitmap(callback: KrollFunction) {
+        var messageId = ""
+        var isSuccess = false
+        var imageBitmap: Bitmap? = null
 
-        // Create timestamped output file to hold the image
-        val photoFile = File(ThisActivity.cacheDir, SimpleDateFormat(FILENAME_FORMAT, Locale.US)
-                .format(System.currentTimeMillis()) + ".jpg")
+        imageCapture?.takePicture(MainExecutor, object : ImageCapture.OnImageCapturedCallback() {
+            @SuppressLint("UnsafeExperimentalUsageError")
+            override fun onCaptureSuccess(imageProxy: ImageProxy) {
+                if (imageProxy.image == null) {
+                    messageId = "error_image_proxy_image"
+                } else {
+                    imageBitmap = generateBitmap(imageProxy)
 
-        // Create output options object which contains file + metadata
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-        imageCapture.takePicture(outputOptions, MainExecutor, object : ImageCapture.OnImageSavedCallback {
-            override fun onError(exc: ImageCaptureException) {
-                Log.e(LCAT, "Photo capture failed: ${exc.message}", exc)
-            }
-
-            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                val savedUri = Uri.fromFile(photoFile)
-                val msg = "Photo saved at `CameraX` folder"
-                Toast.makeText(ThisActivity, msg, Toast.LENGTH_SHORT).show()
-                Log.d(LCAT, msg)
-            }
-        })
-    }
-
-    private fun saveImageAsBitmap() {
-        imageCapture?.takePicture(MainExecutor,
-                object : ImageCapture.OnImageCapturedCallback() {
-                    fun onError(error: ImageCapture.ImageCaptureError, message: String, exc: Throwable?) {
-                        Toast.makeText(ThisActivity, "Error in image capture", Toast.LENGTH_SHORT).show()
-                    }
-
-                    @SuppressLint("UnsafeExperimentalUsageError")
-                    fun onCaptureSuccess(imageProxy: ImageProxy, rotationDegrees: Int) {
-                        imageProxy.image?.let {
-                            val bitmap = rotateImage(imageToBitmap(it), rotationDegrees.toFloat())
-                        }
+                    if (imageBitmap == null) {
+                        messageId = "error_bitmap"
+                    } else {
+                        isSuccess = true
                     }
                 }
-        )
-    }
 
-    private fun rotateImage(source: Bitmap, angle: Float): Bitmap {
-        val matrix = Matrix()
-        matrix.postRotate(angle)
-        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
-    }
+                callback.call(proxy.krollObject, Methods.CapturePhoto.createResult(imageBitmap, isSuccess, messageId))
 
-    private fun imageToBitmap(image: Image): Bitmap {
-        val buffer = image.planes[0].buffer
-        val bytes = ByteArray(buffer.capacity())
-        buffer.get(bytes)
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, null)
+                super.onCaptureSuccess(imageProxy)
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                super.onError(exception)
+                val result = Methods.CapturePhoto.createResult(null, false, "error_image_callback")
+                callback.callAsync(proxy.krollObject, result)
+            }
+        })
     }
 }
