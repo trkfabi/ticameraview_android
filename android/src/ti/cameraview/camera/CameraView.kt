@@ -140,15 +140,19 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             return
         }
 
+        handleUseCases(key)
+    }
+
+    private fun handleUseCases(key: String) {
         when(key) {
-            ASPECT_RATIO, CAMERA_ID, IMAGE_QUALITY -> createCameraPreview(true)
             TORCH_MODE -> handleTorch()
             FLASH_MODE -> handleFlash()
             SCALE_TYPE -> handleScaleType()
-            FOCUS_MODE -> {
+            ASPECT_RATIO, CAMERA_ID, IMAGE_QUALITY -> createCameraPreview(true)
+            FOCUS_MODE, RESUME_AUTO_FOCUS, AUTO_FOCUS_RESUME_TIME -> {
                 when(Utils().getInt(FOCUS_MODE, FOCUS_MODE_AUTO)) {
                     FOCUS_MODE_AUTO -> camera?.cameraControl?.cancelFocusAndMetering()
-                    FOCUS_MODE_TAP -> startFocus(cameraView.width.toFloat()/2, cameraView.height.toFloat()/2)
+                    FOCUS_MODE_TAP -> startFocus(cameraView?.width.toFloat()/2 ?: 0f, cameraView?.height.toFloat()/2 ?: 0f)
                 }
             }
         }
@@ -227,6 +231,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             cameraView = PreviewView(ThisActivity)
             cameraView.setBackgroundColor(Utils().getColor(TiC.PROPERTY_BACKGROUND_COLOR))
             handleScaleType()
+            cameraView.preferredImplementationMode
 
             // apply onTouch listener to listen for TAP_TO_FOCUS actions
             cameraView.setOnTouchListener { _, event ->
@@ -262,9 +267,12 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                         if (imageCapture != null) {
                             camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
-                            handleTorch()
 
                             if (camera != null) {
+                                // re-handle the torch-mode and focus-mode use-cases as they will be rebinded
+                                handleUseCases(TORCH_MODE)
+                                handleUseCases(FOCUS_MODE)
+
                                 Events.fireCameraReadyEvent(proxy, true)
                             } else {
                                 Events.fireCameraReadyEvent(proxy, false, "error_camera_lifecycle")
