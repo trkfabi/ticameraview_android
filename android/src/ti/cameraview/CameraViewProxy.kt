@@ -103,7 +103,7 @@ class CameraViewProxy : TiViewProxy() {
             val callback = dict[Methods.CapturePhoto.PROPERTY_CALLBACK]
 
             if (callback is KrollFunction) {
-                getCameraView().saveImageAsBitmap(callback)
+                getCameraView().saveImageAsFile(callback)
             }
         }
     }

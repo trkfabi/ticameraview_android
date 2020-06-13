@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.util.Log
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.titanium.TiBlob
+import org.appcelerator.titanium.TiFileProxy
 import ti.cameraview.TicameraviewModule
 import ti.cameraview.helper.ResourceUtils
 
@@ -27,9 +28,16 @@ object Methods {
         private const val RESULT_SUCCESS = "success"
         private const val RESULT_MESSAGE = "message"
 
-        @JvmStatic fun createResult(image: Bitmap?, success: Boolean, messageId: String? = null): KrollDict {
+        @JvmStatic fun createResult(image: Any?, success: Boolean, messageId: String? = null): KrollDict {
             return KrollDict().apply {
-                this[RESULT_IMAGE] = image?.let { TiBlob.blobFromImage(image) } ?: null
+                when (image) {
+                    is Bitmap -> {
+                        this[RESULT_IMAGE] = image?.let { TiBlob.blobFromImage(image) } ?: null
+                    }
+                    else -> {
+                        this[RESULT_IMAGE] = image ?: null
+                    }
+                }
                 this[RESULT_SUCCESS] = success
                 this[RESULT_MESSAGE] = messageId?.let { ResourceUtils.getString(it) } ?: ""
             }

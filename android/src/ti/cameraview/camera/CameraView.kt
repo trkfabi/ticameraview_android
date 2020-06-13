@@ -1,9 +1,12 @@
 package ti.cameraview.camera
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.util.Log
 import android.view.MotionEvent
+import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -38,9 +41,15 @@ import ti.cameraview.constant.Properties.IMAGE_QUALITY
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.SCALE_TYPE
 import ti.cameraview.constant.Properties.TORCH_MODE
+import ti.cameraview.helper.FileHandler
 import ti.cameraview.helper.FileHandler.generateBitmap
+import ti.cameraview.helper.FileHandler.generateFileProxy
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
+import ti.modules.titanium.media.MediaModule
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -218,7 +227,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     // {END} -> module-property handlers
 
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint("ClickableViewAccessibility", "RestrictedApi")
     fun createCameraPreview(rebindView: Boolean = false) {
         if (!rebindView) {
             // make sure all existing child views are removed before adding the camera-view
@@ -229,9 +238,9 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             layoutParams.autoFillsWidth = true
 
             cameraView = PreviewView(ThisActivity)
+            cameraView.preferredImplementationMode = PreviewView.ImplementationMode.SURFACE_VIEW
             cameraView.setBackgroundColor(Utils().getColor(TiC.PROPERTY_BACKGROUND_COLOR))
             handleScaleType()
-            cameraView.preferredImplementationMode
 
             // apply onTouch listener to listen for TAP_TO_FOCUS actions
             cameraView.setOnTouchListener { _, event ->
@@ -248,7 +257,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                 try {
                     // Unbind use cases before rebinding
-                    cameraProvider.unbindAll()
+                    CameraX.unbindAll()
 
                     cameraSelector = CameraSelector.Builder().requireLensFacing(Utils().getInt(CAMERA_ID, CameraSelector.LENS_FACING_BACK)).build()
 
@@ -257,8 +266,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                             .build()
 
                     if (preview != null) {
-                        preview!!.setSurfaceProvider(cameraView.createSurfaceProvider())
-
                         imageCapture = ImageCapture.Builder()
                                 .setCaptureMode(Utils().getInt(IMAGE_QUALITY, IMAGE_QUALITY_NORMAL))
                                 .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
@@ -269,6 +276,8 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                             camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
 
                             if (camera != null) {
+                                preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
+
                                 // re-handle the torch-mode and focus-mode use-cases as they will be rebinded
                                 handleUseCases(TORCH_MODE)
                                 handleUseCases(FOCUS_MODE)
@@ -294,7 +303,13 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     }
 
     fun saveImageAsBitmap(callback: KrollFunction) {
-        var messageId = ""
+        if (imageCapture == null) {
+            val result = Methods.CapturePhoto.createResult(null, false, "error_image_callback")
+            callback.callAsync(proxy.krollObject, result)
+            return
+        }
+
+        var messageId: String? = null
         var isSuccess = false
         var imageBitmap: Bitmap? = null
 
@@ -324,5 +339,41 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                 callback.callAsync(proxy.krollObject, result)
             }
         })
+    }
+
+    fun saveImageAsFile(callback: KrollFunction) {
+        if (imageCapture == null) {
+            val result = Methods.CapturePhoto.createResult(null, false, "error_image_callback")
+            callback.callAsync(proxy.krollObject, result)
+            return
+        }
+
+        // Create timestamped output file to hold the image
+        val photoFile = FileHandler.createExternalStorageFile()
+
+        if (photoFile == null) {
+            val result = Methods.CapturePhoto.createResult(null, false, "error_file_callback")
+            callback.callAsync(proxy.krollObject, result)
+            return
+        }
+
+        // Create output options object which contains file + metadata
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+        imageCapture?.takePicture(outputOptions, MainExecutor,
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onError(exc: ImageCaptureException) {
+                        Log.d(LCAT, "Photo capture failed: ${exc.message}")
+                        val result = Methods.CapturePhoto.createResult(null, false, "error_file_save")
+                        callback.callAsync(proxy.krollObject, result)
+                    }
+
+                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                        val imageFile = generateFileProxy(photoFile)
+                        Log.d(LCAT, "Photo capture success: ${imageFile.nativePath}")
+                        callback.call(proxy.krollObject, Methods.CapturePhoto.createResult(imageFile, true))
+                    }
+                }
+        )
     }
 }
