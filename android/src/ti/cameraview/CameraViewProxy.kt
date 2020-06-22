@@ -22,7 +22,6 @@ import ti.cameraview.TicameraviewModule.Companion.IMAGE_TYPE_FILE
 import ti.cameraview.camera.CameraUtils
 import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
-import ti.cameraview.constant.Methods
 import ti.cameraview.constant.Methods.CapturePhoto.PROPERTY_CALLBACK
 import ti.cameraview.constant.Methods.CapturePhoto.PROPERTY_IMAGE_TYPE
 import ti.cameraview.constant.Properties.ASPECT_RATIO

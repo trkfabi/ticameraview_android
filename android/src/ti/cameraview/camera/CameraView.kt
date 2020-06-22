@@ -1,12 +1,9 @@
 package ti.cameraview.camera
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import android.util.Log
 import android.view.MotionEvent
-import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -46,10 +43,6 @@ import ti.cameraview.helper.FileHandler.generateBitmap
 import ti.cameraview.helper.FileHandler.generateFileProxy
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
-import ti.modules.titanium.media.MediaModule
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -70,7 +63,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
     companion object {
         const val LCAT = "CameraView"
-        const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
     }
 
 
@@ -84,11 +76,10 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         }
 
         fun getInt(key: String, defaultValue: Any): Int {
-            if (proxy.hasPropertyAndNotNull(key)) {
-                val a = TiConvert.toInt(proxy.getProperty(key))
-                return a
+            return if (proxy.hasPropertyAndNotNull(key)) {
+                TiConvert.toInt(proxy.getProperty(key))
             } else {
-                return TiConvert.toInt(defaultValue)
+                TiConvert.toInt(defaultValue)
             }
         }
 
@@ -131,10 +122,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         setNativeView(rootView)
 
         cameraExecutor = Executors.newSingleThreadExecutor()
-    }
-
-    override fun processProperties(d: KrollDict?) {
-        super.processProperties(d)
     }
 
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
