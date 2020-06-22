@@ -24,11 +24,13 @@ object Methods {
 
     object CapturePhoto {
         const val PROPERTY_CALLBACK = "callback"
+        const val PROPERTY_IMAGE_TYPE = "imageType"
+
         private const val RESULT_IMAGE = "image"
         private const val RESULT_SUCCESS = "success"
         private const val RESULT_MESSAGE = "message"
 
-        @JvmStatic fun createResult(image: Any?, success: Boolean, messageId: String? = null): KrollDict {
+        @JvmStatic fun createResult(image: Any?, success: Boolean, message: String? = ""): KrollDict {
             return KrollDict().apply {
                 when (image) {
                     is Bitmap -> {
@@ -39,7 +41,7 @@ object Methods {
                     }
                 }
                 this[RESULT_SUCCESS] = success
-                this[RESULT_MESSAGE] = messageId?.let { ResourceUtils.getString(it) } ?: ""
+                this[RESULT_MESSAGE] = message
             }
         }
     }

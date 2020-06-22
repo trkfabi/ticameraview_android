@@ -284,7 +284,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                                 Events.fireCameraReadyEvent(proxy, true)
                             } else {
-                                Events.fireCameraReadyEvent(proxy, false, "error_camera_lifecycle")
+                                Events.fireCameraReadyEvent(proxy, false, "error_camera")
                             }
                         } else {
                             Events.fireCameraReadyEvent(proxy, false, "error_image_capture")
@@ -302,10 +302,15 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         }
     }
 
+    fun onImageSaveError(callback: KrollFunction, message: String? = "") {
+        Log.d(LCAT, "Photo capture failed: $message")
+        val result = Methods.CapturePhoto.createResult(null, false, message)
+        callback.callAsync(proxy.krollObject, result)
+    }
+
     fun saveImageAsBitmap(callback: KrollFunction) {
         if (imageCapture == null) {
-            val result = Methods.CapturePhoto.createResult(null, false, "error_image_callback")
-            callback.callAsync(proxy.krollObject, result)
+            onImageSaveError(callback, ResourceUtils.getString("error_image_callback"))
             return
         }
 
@@ -333,18 +338,15 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                 super.onCaptureSuccess(imageProxy)
             }
 
-            override fun onError(exception: ImageCaptureException) {
-                super.onError(exception)
-                val result = Methods.CapturePhoto.createResult(null, false, "error_image_callback")
-                callback.callAsync(proxy.krollObject, result)
+            override fun onError(exc: ImageCaptureException) {
+                onImageSaveError(callback, exc.message)
             }
         })
     }
 
     fun saveImageAsFile(callback: KrollFunction) {
         if (imageCapture == null) {
-            val result = Methods.CapturePhoto.createResult(null, false, "error_image_callback")
-            callback.callAsync(proxy.krollObject, result)
+            onImageSaveError(callback, ResourceUtils.getString("error_image_callback"))
             return
         }
 
@@ -352,8 +354,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         val photoFile = FileHandler.createExternalStorageFile()
 
         if (photoFile == null) {
-            val result = Methods.CapturePhoto.createResult(null, false, "error_file_callback")
-            callback.callAsync(proxy.krollObject, result)
+            onImageSaveError(callback, ResourceUtils.getString("error_file_callback"))
             return
         }
 
@@ -363,15 +364,13 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         imageCapture?.takePicture(outputOptions, MainExecutor,
                 object : ImageCapture.OnImageSavedCallback {
                     override fun onError(exc: ImageCaptureException) {
-                        Log.d(LCAT, "Photo capture failed: ${exc.message}")
-                        val result = Methods.CapturePhoto.createResult(null, false, "error_file_save")
-                        callback.callAsync(proxy.krollObject, result)
+                        onImageSaveError(callback, exc.message)
                     }
 
                     override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                         val imageFile = generateFileProxy(photoFile)
-                        Log.d(LCAT, "Photo capture success: ${imageFile.nativePath}")
                         callback.call(proxy.krollObject, Methods.CapturePhoto.createResult(imageFile, true))
+                        Log.d(LCAT, "Photo capture success: ${imageFile.nativePath}")
                     }
                 }
         )

@@ -51,6 +51,8 @@ class TicameraviewModule : KrollModule() {
 
 		@Kroll.constant const val IMAGE_QUALITY_NORMAL = Defaults.IMAGE_QUALITY_NORMAL
 		@Kroll.constant const val IMAGE_QUALITY_HIGH = Defaults.IMAGE_QUALITY_HIGH
+
+		@Kroll.constant const val IMAGE_TYPE_FILE = Defaults.IMAGE_TYPE_FILE
 	}
 
 	override fun getApiName(): String? {

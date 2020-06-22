@@ -18,10 +18,13 @@ import org.appcelerator.kroll.annotations.Kroll
 import org.appcelerator.kroll.annotations.Kroll.proxy
 import org.appcelerator.titanium.proxy.TiViewProxy
 import org.appcelerator.titanium.view.TiUIView
+import ti.cameraview.TicameraviewModule.Companion.IMAGE_TYPE_FILE
 import ti.cameraview.camera.CameraUtils
 import ti.cameraview.camera.CameraView
 import ti.cameraview.constant.Defaults
 import ti.cameraview.constant.Methods
+import ti.cameraview.constant.Methods.CapturePhoto.PROPERTY_CALLBACK
+import ti.cameraview.constant.Methods.CapturePhoto.PROPERTY_IMAGE_TYPE
 import ti.cameraview.constant.Properties.ASPECT_RATIO
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 import ti.cameraview.constant.Properties.CAMERA_ID
@@ -32,6 +35,7 @@ import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.SCALE_TYPE
 import ti.cameraview.constant.Properties.TORCH_MODE
 import ti.cameraview.helper.PermissionHandler
+import ti.cameraview.helper.ResourceUtils
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
@@ -97,13 +101,19 @@ class CameraViewProxy : TiViewProxy() {
     fun capturePhoto(dict: KrollDict?) {
         if (dict == null) return
 
-        if (! getCameraView().isCameraReady() ) return
-
-        if (dict.containsKeyAndNotNull(Methods.CapturePhoto.PROPERTY_CALLBACK)) {
-            val callback = dict[Methods.CapturePhoto.PROPERTY_CALLBACK]
+        if (dict.containsKeyAndNotNull(PROPERTY_CALLBACK)) {
+            val callback = dict[PROPERTY_CALLBACK]
 
             if (callback is KrollFunction) {
-                getCameraView().saveImageAsFile(callback)
+                if (getCameraView().isCameraReady()) {
+                    if (dict.containsKeyAndNotNull(PROPERTY_IMAGE_TYPE) && dict[PROPERTY_IMAGE_TYPE] == IMAGE_TYPE_FILE) {
+                        getCameraView().saveImageAsFile(callback)
+                    } else {
+                        getCameraView().saveImageAsBitmap(callback)
+                    }
+                } else {
+                    getCameraView().onImageSaveError(callback, ResourceUtils.getString("error_camera"))
+                }
             }
         }
     }

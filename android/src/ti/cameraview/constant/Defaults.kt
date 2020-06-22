@@ -35,4 +35,6 @@ object Defaults {
 
     const val IMAGE_QUALITY_NORMAL = ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
     const val IMAGE_QUALITY_HIGH = ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+
+    const val IMAGE_TYPE_FILE = "image_type_file"
 }
