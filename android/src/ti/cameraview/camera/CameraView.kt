@@ -198,7 +198,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             return
         }
 
-        val meteringFactory = cameraView.createMeteringPointFactory(cameraSelector)
+        val meteringFactory = cameraView.getMeteringPointFactory()
         val meteringPoint = meteringFactory.createPoint(x, y)
 
         val action = if (Utils().getBoolean(RESUME_AUTO_FOCUS, RESUME_AUTO_FOCUS_AFTER_FOCUS_MODE_TAP)) {
@@ -225,7 +225,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             layoutParams.autoFillsWidth = true
 
             cameraView = PreviewView(ThisActivity)
-            cameraView.preferredImplementationMode = PreviewView.ImplementationMode.SURFACE_VIEW
+            cameraView.implementationMode = PreviewView.ImplementationMode.PERFORMANCE
             cameraView.setBackgroundColor(Utils().getColor(TiC.PROPERTY_BACKGROUND_COLOR))
             handleScaleType()
 
@@ -244,7 +244,8 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                 try {
                     // Unbind use cases before rebinding
-                    CameraX.unbindAll()
+                    //CameraX.unbindAll()
+                    cameraProvider.unbindAll()
 
                     cameraSelector = CameraSelector.Builder().requireLensFacing(Utils().getInt(CAMERA_ID, CameraSelector.LENS_FACING_BACK)).build()
 
@@ -263,7 +264,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                             camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
 
                             if (camera != null) {
-                                preview?.setSurfaceProvider(cameraView.createSurfaceProvider())
+                                preview?.setSurfaceProvider(cameraView.getSurfaceProvider())
 
                                 // re-handle the torch-mode and focus-mode use-cases as they will be rebinded
                                 handleUseCases(TORCH_MODE)
@@ -323,6 +324,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                 callback.call(proxy.krollObject, Methods.CapturePhoto.createResult(imageBitmap, isSuccess, messageId))
 
                 super.onCaptureSuccess(imageProxy)
+                imageProxy.close();
             }
 
             override fun onError(exc: ImageCaptureException) {

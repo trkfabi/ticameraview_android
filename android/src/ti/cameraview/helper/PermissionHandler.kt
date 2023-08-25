@@ -8,6 +8,9 @@ class PermissionHandler {
     companion object {
         @JvmStatic
         fun hasStoragePermission(): Boolean {
+            if (Build.VERSION.SDK_INT >= 33) {
+                return ResourceUtils.getContext().checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+            }
             if (Build.VERSION.SDK_INT >= 23) {
                 return ResourceUtils.getContext().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
             }

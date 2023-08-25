@@ -17,7 +17,6 @@ import org.appcelerator.titanium.TiBlob
 import org.appcelerator.titanium.TiFileProxy
 import org.appcelerator.titanium.io.TiFileFactory
 import org.appcelerator.titanium.io.TiFileProvider
-import org.appcelerator.titanium.io.TitaniumBlob
 import org.appcelerator.titanium.util.TiFileHelper
 import ti.cameraview.TicameraviewModule
 import java.io.File
@@ -63,7 +62,7 @@ object FileHandler {
         }
 
         try {
-            return TiFileHelper.getInstance().getTempFile(appDir, ".jpg", true)
+            return TiFileHelper.getInstance().getTempFile(".jpg", true)
         } catch (exc: IOException) {
             Log.e("", "Failed to create file: " + exc.message)
         }
