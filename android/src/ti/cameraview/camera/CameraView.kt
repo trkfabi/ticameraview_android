@@ -2,8 +2,10 @@ package ti.cameraview.camera
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.os.Build
 import android.util.Log
 import android.view.MotionEvent
+import androidx.annotation.RequiresApi
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -124,6 +126,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
@@ -139,6 +142,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         handleUseCases(key)
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleUseCases(key: String) {
         when(key) {
             TORCH_MODE -> handleTorch()
@@ -148,7 +152,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
             FOCUS_MODE, RESUME_AUTO_FOCUS, AUTO_FOCUS_RESUME_TIME -> {
                 when(Utils().getInt(FOCUS_MODE, FOCUS_MODE_AUTO)) {
                     FOCUS_MODE_AUTO -> camera?.cameraControl?.cancelFocusAndMetering()
-                    FOCUS_MODE_TAP -> startFocus(cameraView?.width.toFloat()/2 ?: 0f, cameraView?.height.toFloat()/2 ?: 0f)
+                    FOCUS_MODE_TAP -> startFocus(cameraView?.width!!.toFloat()/2 ?: 0f, cameraView?.height!!.toFloat()/2 ?: 0f)
                 }
             }
         }
@@ -170,28 +174,33 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     }
 
     // check whether the camera has flash - could be front/back
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun hasFlash(): Boolean {
         return camera?.cameraInfo?.hasFlashUnit() ?: false
     }
 
     // {START} -> module-property handlers
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun handleTorch() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             camera?.cameraControl?.enableTorch( Utils().getBoolean(TORCH_MODE, TORCH_MODE_OFF) )
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleFlash() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             imageCapture?.flashMode = Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO)
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleScaleType() {
         cameraView.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE, SCALE_TYPE_FIT_CENTER))
     }
 
     // start focusing on the given co-ordinates in TAP_TO_FOCUS mode
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun startFocus(x: Float, y: Float) {
         if (Utils().getInt(FOCUS_MODE, FOCUS_MODE_AUTO) != FOCUS_MODE_TAP) {
             camera?.cameraControl?.cancelFocusAndMetering()
@@ -214,6 +223,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     // {END} -> module-property handlers
 
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @SuppressLint("ClickableViewAccessibility", "RestrictedApi")
     fun createCameraPreview(rebindView: Boolean = false) {
         if (!rebindView) {
@@ -296,6 +306,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         callback.callAsync(proxy.krollObject, result)
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun saveImageAsBitmap(callback: KrollFunction) {
         if (imageCapture == null) {
             onImageSaveError(callback, ResourceUtils.getString("error_image_callback"))
@@ -307,7 +318,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         var imageBitmap: Bitmap? = null
 
         imageCapture?.takePicture(MainExecutor, object : ImageCapture.OnImageCapturedCallback() {
-            @SuppressLint("UnsafeExperimentalUsageError")
+            @SuppressLint("UnsafeExperimentalUsageError", "UnsafeOptInUsageError")
             override fun onCaptureSuccess(imageProxy: ImageProxy) {
                 if (imageProxy.image == null) {
                     messageId = "error_image_proxy_image"
@@ -333,6 +344,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         })
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun saveImageAsFile(callback: KrollFunction) {
         if (imageCapture == null) {
             onImageSaveError(callback, ResourceUtils.getString("error_image_callback"))
