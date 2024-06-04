@@ -21,4 +21,22 @@ object Events {
         eventData[CameraReady.PROPERTY_MESSAGE] = messageId?.let { ResourceUtils.getString(it) } ?: message
         proxy.fireEvent(CameraReady.NAME, eventData)
     }
+    @JvmStatic fun fireStartRecordingEvent(proxy: TiViewProxy, isSuccess: Boolean, messageId: String? = null, message: String = "") {
+        val eventData = KrollDict()
+        eventData["success"] = isSuccess
+        eventData["message"] = messageId?.let { ResourceUtils.getString(it) } ?: message
+        proxy.fireEvent("video:started", eventData)
+    }
+    @JvmStatic fun fireStopRecordingEvent(proxy: TiViewProxy, isSuccess: Boolean, messageId: String? = null, message: String = "") {
+        val eventData = KrollDict()
+        eventData["success"] = isSuccess
+        eventData["message"] = messageId?.let { ResourceUtils.getString(it) } ?: message
+        proxy.fireEvent("video:stopped", eventData)
+    }
+    @JvmStatic fun fireStatusEvent(proxy: TiViewProxy, isSuccess: Boolean, messageId: String? = null, message: String = "") {
+        val eventData = KrollDict()
+        eventData["success"] = isSuccess
+        eventData["message"] = messageId?.let { ResourceUtils.getString(it) } ?: message
+        proxy.fireEvent("video:status", eventData)
+    }
 }

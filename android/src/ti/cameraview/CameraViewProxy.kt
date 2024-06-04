@@ -11,7 +11,9 @@
 package ti.cameraview
 
 import android.app.Activity
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollFunction
 import org.appcelerator.kroll.annotations.Kroll
@@ -33,11 +35,13 @@ import ti.cameraview.constant.Properties.IMAGE_QUALITY
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.SCALE_TYPE
 import ti.cameraview.constant.Properties.TORCH_MODE
+import ti.cameraview.constant.Properties.CAMERA_MODE
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
+    CAMERA_MODE,
     CAMERA_ID,
     TORCH_MODE,
     FLASH_MODE,
@@ -50,6 +54,7 @@ import ti.cameraview.helper.ResourceUtils
 ])
 class CameraViewProxy : TiViewProxy() {
     init {
+        defaultValues[CAMERA_MODE] = Defaults.CAMERA_MODE_PHOTO
         defaultValues[CAMERA_ID] = CameraUtils.getDefaultCameraId()
         defaultValues[TORCH_MODE] = Defaults.TORCH_MODE_OFF
         defaultValues[FLASH_MODE] = Defaults.FLASH_MODE_AUTO
@@ -61,6 +66,7 @@ class CameraViewProxy : TiViewProxy() {
         defaultValues[AUTO_FOCUS_RESUME_TIME] = Defaults.RESUME_AUTO_FOCUS_TIME_AFTER_FOCUS_MODE_TAP
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     override fun createView(activity: Activity): TiUIView {
         val view: TiUIView = CameraView(this)
         view.layoutParams.autoFillsHeight = true
@@ -68,18 +74,22 @@ class CameraViewProxy : TiViewProxy() {
         return view
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     override fun onResume(activity: Activity?) {
+        Log.d(TicameraviewModule.LCAT, "onResume()")
         // handle the torch state since the torch is turned off whenever the activity goes in pause state
         getCameraView().handleTorch()
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun getCameraView(): CameraView {
         return view as CameraView
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @Kroll.method
     fun createCameraView() {
-        if (CameraUtils.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission()) {
+        if (CameraUtils.isCameraSupported() && PermissionHandler.hasCameraPermission() && PermissionHandler.hasStoragePermission() && PermissionHandler.hasAudioPermission()) {
             // create camera view if not ready yet
             getCameraView().apply {
                 if (!this.isCameraReady()) {
@@ -87,17 +97,20 @@ class CameraViewProxy : TiViewProxy() {
                 }
             }
         } else {
-            Log.d(CameraView.LCAT, "Camera permissions missing. Use Ti.Media.requestCameraPermissions to request required permissions")
+            Log.d(TicameraviewModule.LCAT, "Camera permissions missing. Use Ti.Media.requestCameraPermissions to request required permissions")
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @Kroll.method
     fun hasFlash(): Boolean {
         return getCameraView().isCameraReady() && getCameraView().hasFlash()
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @Kroll.method
     fun capturePhoto(dict: KrollDict?) {
+        Log.d(TicameraviewModule.LCAT, "capturePhoto()")
         if (dict == null) return
 
         if (dict.containsKeyAndNotNull(PROPERTY_CALLBACK)) {
@@ -116,4 +129,30 @@ class CameraViewProxy : TiViewProxy() {
             }
         }
     }
+
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    @Kroll.method
+    fun startCaptureVideo(dict: KrollDict?) {
+        Log.d(TicameraviewModule.LCAT, "startCaptureVideo()")
+        if (dict == null) return
+
+        if (dict.containsKeyAndNotNull(PROPERTY_CALLBACK)) {
+            val callback = dict[PROPERTY_CALLBACK]
+
+            if (callback is KrollFunction) {
+                if (getCameraView().isCameraReady()) {
+                    getCameraView().startRecording(callback)
+                } else {
+                    getCameraView().onImageSaveError(callback, ResourceUtils.getString("error_camera"))
+                }
+            }
+        }
+    }
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    @Kroll.method
+    fun stopCaptureVideo() {
+        Log.d(TicameraviewModule.LCAT, "stopCaptureVideo")
+        getCameraView().stopRecording()
+    }
+
 }

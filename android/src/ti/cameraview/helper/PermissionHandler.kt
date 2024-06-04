@@ -24,5 +24,13 @@ class PermissionHandler {
             }
             return true
         }
+
+        @JvmStatic
+        fun hasAudioPermission(): Boolean {
+            if (Build.VERSION.SDK_INT >= 23) {
+                return ResourceUtils.getContext().checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            }
+            return true
+        }
     }
 }

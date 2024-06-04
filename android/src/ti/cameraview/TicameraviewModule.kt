@@ -13,11 +13,12 @@ import org.appcelerator.kroll.KrollModule
 import org.appcelerator.kroll.annotations.Kroll
 import ti.cameraview.camera.CameraUtils
 import ti.cameraview.constant.Defaults
+import android.util.Log
 
 @Kroll.module(name="ticameraview", id="ti.cameraview")
 class TicameraviewModule : KrollModule() {
     companion object {
-		const val LCAT = "ti.cameraview"
+		public const val LCAT = "ti.cameraview"
 
 		@JvmStatic var cameraList: ArrayList<KrollDict> = arrayListOf()
 
@@ -26,9 +27,12 @@ class TicameraviewModule : KrollModule() {
 			if (cameraList.size == 0) {
 				cameraList = CameraUtils.getCameraList()
 			}
-
+			Log.i(LCAT, "cameralist ${cameraList}")
 			return cameraList
 		}
+
+		@Kroll.constant const val CAMERA_MODE_PHOTO = Defaults.CAMERA_MODE_PHOTO
+		@Kroll.constant const val CAMERA_MODE_VIDEO = Defaults.CAMERA_MODE_VIDEO
 
 		@Kroll.constant const val TORCH_MODE_OFF = Defaults.TORCH_MODE_OFF
 		@Kroll.constant const val TORCH_MODE_ON = Defaults.TORCH_MODE_ON

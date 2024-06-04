@@ -6,6 +6,7 @@ package ti.cameraview.constant
 
 object Properties {
     // properties to be exposed through module
+    const val CAMERA_MODE = "cameraMode"
     const val CAMERA_ID = "cameraId"
     const val TORCH_MODE = "torchMode"
     const val FLASH_MODE = "flashMode"

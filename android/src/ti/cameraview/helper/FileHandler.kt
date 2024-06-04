@@ -8,9 +8,11 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.Image
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.camera.core.ImageProxy
 import org.appcelerator.titanium.TiApplication
 import org.appcelerator.titanium.TiBlob
@@ -44,15 +46,21 @@ object FileHandler {
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, null)
     }
 
-    @SuppressLint("UnsafeExperimentalUsageError")
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    @SuppressLint("UnsafeExperimentalUsageError", "UnsafeOptInUsageError")
     @JvmStatic fun generateBitmap(imageProxy: ImageProxy): Bitmap? {
         val bitmap = imageToBitmap(imageProxy.image!!)
         val rotationDegrees = imageProxy.imageInfo.rotationDegrees
         return rotateImage(bitmap, rotationDegrees.toFloat())
     }
 
-    @JvmStatic fun createExternalStorageFile(): File? {
-        val dir: File? = TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+    @JvmStatic fun createExternalStorageFile(fileExtension: String = "jpg"): File? {
+        var dir: File
+        if (fileExtension=="jpg") {
+            dir = TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_PICTURES)!!
+        } else {
+            dir = TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_MOVIES)!!
+        }
         var appDir = File(dir, TiApplication.getInstance().appInfo.name)
 
         if (!appDir.exists()) {
@@ -62,7 +70,7 @@ object FileHandler {
         }
 
         try {
-            return TiFileHelper.getInstance().getTempFile(".jpg", true)
+            return TiFileHelper.getInstance().getTempFile(".$fileExtension", true)
         } catch (exc: IOException) {
             Log.e("", "Failed to create file: " + exc.message)
         }
@@ -73,4 +81,5 @@ object FileHandler {
     @JvmStatic fun generateFileProxy(file: File): TiFileProxy {
         return TiFileProxy(TiFileFactory.createTitaniumFile(file.absolutePath, false))
     }
+
 }

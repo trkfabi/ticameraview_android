@@ -10,6 +10,9 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.TorchState
 
 object Defaults {
+    const val CAMERA_MODE_PHOTO = "PHOTO"
+    const val CAMERA_MODE_VIDEO = "VIDEO"
+    
     const val TORCH_MODE_OFF = TorchState.OFF
     const val TORCH_MODE_ON = TorchState.ON
 

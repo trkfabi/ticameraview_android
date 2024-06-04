@@ -8,10 +8,11 @@ import android.view.MotionEvent
 import androidx.annotation.RequiresApi
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.*
+import androidx.camera.video.VideoCapture
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollFunction
 import org.appcelerator.kroll.KrollProxy
 import org.appcelerator.titanium.TiC
@@ -21,6 +22,8 @@ import org.appcelerator.titanium.view.TiCompositeLayout
 import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement
 import org.appcelerator.titanium.view.TiUIView
 import ti.cameraview.constant.Defaults.ASPECT_RATIO_4_3
+import ti.cameraview.constant.Defaults.CAMERA_MODE_PHOTO
+import ti.cameraview.constant.Defaults.CAMERA_MODE_VIDEO
 import ti.cameraview.constant.Defaults.FLASH_MODE_AUTO
 import ti.cameraview.constant.Defaults.FOCUS_MODE_AUTO
 import ti.cameraview.constant.Defaults.FOCUS_MODE_TAP
@@ -34,6 +37,7 @@ import ti.cameraview.constant.Methods
 import ti.cameraview.constant.Properties.ASPECT_RATIO
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 import ti.cameraview.constant.Properties.CAMERA_ID
+import ti.cameraview.constant.Properties.CAMERA_MODE
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.FOCUS_MODE
 import ti.cameraview.constant.Properties.IMAGE_QUALITY
@@ -50,23 +54,27 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 
+@RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
+    companion object {
+        public const val LCAT = "CameraView.kt"
+    }
+
     private var rootView: TiCompositeLayout
     private var preview: Preview? = null
     private var imageCapture: ImageCapture? = null
+    private var videoCapture: VideoCapture<Recorder>? = null
     private var camera: Camera? = null
     private var cameraExecutor: ExecutorService
     private lateinit var cameraSelector: CameraSelector
     private lateinit var cameraView: PreviewView
 
+    private var cameraMode = "PHOTO"
+    private var currentRecording: Recording? = null
+    private lateinit var recordingState:VideoRecordEvent
+
     private val ThisActivity get() = proxy.activity
     private val MainExecutor get() = ContextCompat.getMainExecutor(ThisActivity)
-
-
-    companion object {
-        const val LCAT = "CameraView"
-    }
-
 
     inner class Utils {
         fun getBoolean(key: String, defaultValue: Any): Boolean {
@@ -96,6 +104,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
 
     init {
+        Log.d(LCAT, "CameraView() init()");
         // sanity check for `lifecycleContainer` property to control the activity lifecycle
         if (!proxy.properties.containsKeyAndNotNull(TiC.PROPERTY_LIFECYCLE_CONTAINER)) {
             Log.d(LCAT, "`lifecycleContainer` property missing, some features like `torch` may not work properly")
@@ -133,7 +142,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         if (outerView == null) {
             return
         }
-
         // check if the property has been really changed to avoid rebinding camera-view and execute other features
         if (oldValue == newValue) {
             return
@@ -145,6 +153,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleUseCases(key: String) {
         when(key) {
+            CAMERA_MODE -> handleCameraMode()
             TORCH_MODE -> handleTorch()
             FLASH_MODE -> handleFlash()
             SCALE_TYPE -> handleScaleType()
@@ -163,6 +172,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
         if (preview != null) preview = null
         if (imageCapture != null) imageCapture = null
+        if (videoCapture != null) videoCapture = null
         if (camera != null) camera = null
 
         super.release()
@@ -184,6 +194,15 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     fun handleTorch() {
         if (camera?.cameraInfo?.hasFlashUnit() == true) {
             camera?.cameraControl?.enableTorch( Utils().getBoolean(TORCH_MODE, TORCH_MODE_OFF) )
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    fun handleCameraMode() {
+        if (cameraMode == CAMERA_MODE_PHOTO) {
+            cameraMode = ResourceUtils.getString(CAMERA_MODE_VIDEO)
+        } else {
+            cameraMode = ResourceUtils.getString(CAMERA_MODE_PHOTO)
         }
     }
 
@@ -254,43 +273,55 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
 
                 try {
                     // Unbind use cases before rebinding
-                    //CameraX.unbindAll()
                     cameraProvider.unbindAll()
+
+                    handleUseCases(CAMERA_MODE)
 
                     cameraSelector = CameraSelector.Builder().requireLensFacing(Utils().getInt(CAMERA_ID, CameraSelector.LENS_FACING_BACK)).build()
 
                     preview = Preview.Builder()
                             .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
                             .build()
-
-                    if (preview != null) {
+                            
+                    preview?.setSurfaceProvider(cameraView.getSurfaceProvider())
+        
+                    cameraProvider.unbindAll()
+                    if (cameraMode == CAMERA_MODE_PHOTO) {
+                        Log.d(LCAT, "cameraMode is PHOTO - init imageCapture")
                         imageCapture = ImageCapture.Builder()
-                                .setCaptureMode(Utils().getInt(IMAGE_QUALITY, IMAGE_QUALITY_NORMAL))
-                                .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
-                                .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
-                                .build()
+                            .setCaptureMode(Utils().getInt(IMAGE_QUALITY, IMAGE_QUALITY_NORMAL))
+                            .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
+                            .setTargetAspectRatio(Utils().getInt(ASPECT_RATIO, ASPECT_RATIO_4_3))
+                            .build()
+                        camera = cameraProvider.bindToLifecycle(
+                                ThisActivity as LifecycleOwner,
+                                cameraSelector,
+                                preview,
+                                imageCapture
+                            )
 
-                        if (imageCapture != null) {
-                            camera = cameraProvider.bindToLifecycle(ThisActivity as LifecycleOwner, cameraSelector, preview, imageCapture)
-
-                            if (camera != null) {
-                                preview?.setSurfaceProvider(cameraView.getSurfaceProvider())
-
-                                // re-handle the torch-mode and focus-mode use-cases as they will be rebinded
-                                handleUseCases(TORCH_MODE)
-                                handleUseCases(FOCUS_MODE)
-
-                                Events.fireCameraReadyEvent(proxy, true)
-                            } else {
-                                Events.fireCameraReadyEvent(proxy, false, "error_camera")
-                            }
-                        } else {
-                            Events.fireCameraReadyEvent(proxy, false, "error_image_capture")
-                        }
                     } else {
-                        Events.fireCameraReadyEvent(proxy, false, "error_preview")
+                        Log.d(LCAT, "cameraMode is VIDEO - init videoCapture")
+                        val recorder = Recorder.Builder()
+                        .setExecutor(cameraExecutor)
+                        .setQualitySelector(QualitySelector.from(Quality.HD))
+                        .build()
+
+                        videoCapture = VideoCapture.withOutput(recorder)
+
+                        camera = cameraProvider.bindToLifecycle(
+                            ThisActivity as LifecycleOwner,
+                            cameraSelector,
+                            videoCapture,
+                            preview                            
+                        )
                     }
 
+                    // re-handle the torch-mode and focus-mode use-cases as they will be rebinded
+                    handleUseCases(TORCH_MODE)
+                    handleUseCases(FOCUS_MODE)
+
+                    Events.fireCameraReadyEvent(proxy, true)
                 } catch(exc: Exception) {
                     Log.e(LCAT, "Use case binding failed", exc)
                     Events.fireCameraReadyEvent(proxy, false, null, exc.toString())
@@ -301,7 +332,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     }
 
     fun onImageSaveError(callback: KrollFunction, message: String? = "") {
-        Log.d(LCAT, "Photo capture failed: $message")
+        Log.e(LCAT, "Photo capture failed: $message")
         val result = Methods.CapturePhoto.createResult(null, false, message)
         callback.callAsync(proxy.krollObject, result)
     }
@@ -371,9 +402,88 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                     override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                         val imageFile = generateFileProxy(photoFile)
                         callback.call(proxy.krollObject, Methods.CapturePhoto.createResult(imageFile, true))
-                        Log.d(LCAT, "Photo capture success: ${imageFile.nativePath}")
                     }
                 }
         )
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startRecording(callback: KrollFunction) {
+        try {
+            var previousElapsedSeconds = 0
+            val videoFile = FileHandler.createExternalStorageFile("mp4")
+            if (videoFile == null) {
+                onImageSaveError(callback, ResourceUtils.getString("error_file_callback"))
+                return
+            }
+            currentRecording = videoCapture?.output?.prepareRecording(ThisActivity, FileOutputOptions.Builder(videoFile).build())?.withAudioEnabled()
+            ?.start(cameraExecutor) { recordEvent: VideoRecordEvent ->
+                when (recordEvent) {
+
+                    is VideoRecordEvent.Start -> {
+                        recordingState = recordEvent
+                        previousElapsedSeconds = 0
+                        Log.d(LCAT, "Recording started")
+                        Events.fireStartRecordingEvent(proxy, true, null, "Recording started")
+                    }
+
+                    is VideoRecordEvent.Finalize -> {
+                        recordingState = recordEvent
+                        Log.d(LCAT, "Recording Finalize")
+                        Events.fireStopRecordingEvent(proxy, true, null, "Recording stopped")
+                        if (recordEvent.error == VideoRecordEvent.Finalize.ERROR_NONE) {
+                            Log.i(LCAT, "Recording Finalize without errors")
+                            val videoFileProxy = generateFileProxy(videoFile)
+                            ThisActivity.runOnUiThread {
+                                callback.callAsync(proxy.krollObject, arrayOf(videoFileProxy))
+                            }
+                        } else {
+                            Log.e(
+                                LCAT,
+                                "Video capture failed: ${recordEvent.cause?.message}",
+                                recordEvent.cause
+                            )
+
+                        }
+                    }
+
+                    is VideoRecordEvent.Status -> {
+
+                        val recordingStats: RecordingStats = recordEvent.getRecordingStats()
+                        val elapsedSeconds = recordingStats.recordedDurationNanos / 1000000000
+                        if (elapsedSeconds > previousElapsedSeconds) {
+                            previousElapsedSeconds = elapsedSeconds.toInt()
+                            Events.fireStatusEvent(proxy, true, null, elapsedSeconds.toString())
+                        }
+                    }
+
+                    is VideoRecordEvent.Pause -> {
+                        Log.d(LCAT, "Recording Paused")
+                    }
+
+                    is VideoRecordEvent.Resume -> {
+                        Log.d(LCAT, "Recording Resumed")
+                    }
+
+                    else -> {
+                        recordingState = recordEvent
+                    }
+                }
+            }
+        } catch(exc: Exception) {
+            Log.e(LCAT, "Start recording error", exc)
+        }
+    }
+
+    fun stopRecording() {
+        if (currentRecording == null || recordingState is VideoRecordEvent.Finalize) {
+            return
+        }
+
+        val recording = currentRecording
+        if (recording != null) {
+            recording?.stop()
+            currentRecording = null
+        }
     }
 }
