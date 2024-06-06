@@ -69,7 +69,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     private lateinit var cameraSelector: CameraSelector
     private lateinit var cameraView: PreviewView
 
-    private var cameraMode = "PHOTO"
+    private var cameraMode: String = proxy.getProperty(CAMERA_MODE) as String;
     private var currentRecording: Recording? = null
     private lateinit var recordingState:VideoRecordEvent
 
@@ -139,6 +139,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     override fun propertyChanged(key: String, oldValue: Any?, newValue: Any?, proxy: KrollProxy) {
         super.propertyChanged(key, oldValue, newValue, proxy)
 
+        Log.w(LCAT, "key: ${key} old: ${oldValue} new: ${newValue}")
         if (outerView == null) {
             return
         }
@@ -153,7 +154,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleUseCases(key: String) {
         when(key) {
-            CAMERA_MODE -> handleCameraMode()
             TORCH_MODE -> handleTorch()
             FLASH_MODE -> handleFlash()
             SCALE_TYPE -> handleScaleType()
@@ -197,14 +197,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    fun handleCameraMode() {
-        if (cameraMode == CAMERA_MODE_PHOTO) {
-            cameraMode = ResourceUtils.getString(CAMERA_MODE_VIDEO)
-        } else {
-            cameraMode = ResourceUtils.getString(CAMERA_MODE_PHOTO)
-        }
-    }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleFlash() {
@@ -216,6 +208,11 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun handleScaleType() {
         cameraView.scaleType = ResourceUtils.getScaleType(Utils().getInt(SCALE_TYPE, SCALE_TYPE_FIT_CENTER))
+    }
+
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun handleCameraMode() {
+        cameraMode = proxy.getProperty(CAMERA_MODE) as String
     }
 
     // start focusing on the given co-ordinates in TAP_TO_FOCUS mode
@@ -274,9 +271,6 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                 try {
                     // Unbind use cases before rebinding
                     cameraProvider.unbindAll()
-
-                    handleUseCases(CAMERA_MODE)
-
                     cameraSelector = CameraSelector.Builder().requireLensFacing(Utils().getInt(CAMERA_ID, CameraSelector.LENS_FACING_BACK)).build()
 
                     preview = Preview.Builder()
@@ -286,8 +280,11 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                     preview?.setSurfaceProvider(cameraView.getSurfaceProvider())
         
                     cameraProvider.unbindAll()
+
+                    Log.i(LCAT, "CAMERA_MODE = ${cameraMode}")
+
                     if (cameraMode == CAMERA_MODE_PHOTO) {
-                        Log.d(LCAT, "cameraMode is PHOTO - init imageCapture")
+                        Log.i(LCAT, "cameraMode is PHOTO - init imageCapture")
                         imageCapture = ImageCapture.Builder()
                             .setCaptureMode(Utils().getInt(IMAGE_QUALITY, IMAGE_QUALITY_NORMAL))
                             .setFlashMode(Utils().getInt(FLASH_MODE, FLASH_MODE_AUTO))
@@ -301,7 +298,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
                             )
 
                     } else {
-                        Log.d(LCAT, "cameraMode is VIDEO - init videoCapture")
+                        Log.i(LCAT, "cameraMode is VIDEO - init videoCapture")
                         val recorder = Recorder.Builder()
                         .setExecutor(cameraExecutor)
                         .setQualitySelector(QualitySelector.from(Quality.HD))
@@ -383,7 +380,7 @@ class CameraView(proxy: TiViewProxy) : TiUIView(proxy) {
         }
 
         // Create timestamped output file to hold the image
-        val photoFile = FileHandler.createExternalStorageFile()
+        val photoFile = FileHandler.createExternalStorageFile("jpg")
 
         if (photoFile == null) {
             onImageSaveError(callback, ResourceUtils.getString("error_file_callback"))

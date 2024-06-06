@@ -29,19 +29,18 @@ import ti.cameraview.constant.Methods.CapturePhoto.PROPERTY_IMAGE_TYPE
 import ti.cameraview.constant.Properties.ASPECT_RATIO
 import ti.cameraview.constant.Properties.AUTO_FOCUS_RESUME_TIME
 import ti.cameraview.constant.Properties.CAMERA_ID
+import ti.cameraview.constant.Properties.CAMERA_MODE
 import ti.cameraview.constant.Properties.FLASH_MODE
 import ti.cameraview.constant.Properties.FOCUS_MODE
 import ti.cameraview.constant.Properties.IMAGE_QUALITY
 import ti.cameraview.constant.Properties.RESUME_AUTO_FOCUS
 import ti.cameraview.constant.Properties.SCALE_TYPE
 import ti.cameraview.constant.Properties.TORCH_MODE
-import ti.cameraview.constant.Properties.CAMERA_MODE
 import ti.cameraview.helper.PermissionHandler
 import ti.cameraview.helper.ResourceUtils
 
 
 @proxy(creatableInModule = TicameraviewModule::class, propertyAccessors = [
-    CAMERA_MODE,
     CAMERA_ID,
     TORCH_MODE,
     FLASH_MODE,
@@ -50,7 +49,8 @@ import ti.cameraview.helper.ResourceUtils
     FOCUS_MODE,
     IMAGE_QUALITY,
     RESUME_AUTO_FOCUS,
-    AUTO_FOCUS_RESUME_TIME
+    AUTO_FOCUS_RESUME_TIME,
+    CAMERA_MODE
 ])
 class CameraViewProxy : TiViewProxy() {
     init {
