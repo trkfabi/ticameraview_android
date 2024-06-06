@@ -3,6 +3,7 @@ package ti.cameraview.helper
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 
 class PermissionHandler {
     companion object {
