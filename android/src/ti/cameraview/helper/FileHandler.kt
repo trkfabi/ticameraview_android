@@ -55,18 +55,14 @@ object FileHandler {
     }
 
     @JvmStatic fun createExternalStorageFile(fileExtension: String = "jpg"): File? {
-        var dir: File
-        if (fileExtension=="jpg") {
-            dir = TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_PICTURES)!!
-        } else {
-            dir = TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_MOVIES)!!
-        }
+        val dir = when (fileExtension) {
+            "jpg" -> TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+            else -> TiApplication.getInstance().getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+        } ?: return null
         var appDir = File(dir, TiApplication.getInstance().appInfo.name)
 
-        if (!appDir.exists()) {
-            if (!appDir.mkdirs()) {
+        if (!appDir.exists() && !appDir.mkdirs()) {
                 appDir = TiApplication.getInstance().cacheDir
-            }
         }
 
         try {
